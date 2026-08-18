@@ -2,7 +2,7 @@
  * unraid-compose-gateway dashboard tab.
  *
  * Plain IIFE, no build step. Uses window.__HERMES_PLUGIN_SDK__ for React and
- * hooks, and talks to the plugin backend at /api/plugins/unraid_compose_gateway/.
+ * hooks, and talks to the plugin backend at /api/plugins/ucg/.
  */
 (function () {
   "use strict";
@@ -10,7 +10,7 @@
   var SDK = window.__HERMES_PLUGIN_SDK__ || {};
   var React = SDK.React;
   if (!React) {
-    console.error("[unraid_compose_gateway] Hermes plugin SDK not available");
+    console.error("[ucg] Hermes plugin SDK not available");
     return;
   }
   var h = React.createElement;
@@ -19,7 +19,7 @@
   var useEffect = hooks.useEffect;
   var useCallback = hooks.useCallback;
 
-  var BASE = "/api/plugins/unraid_compose_gateway";
+  var BASE = "/api/plugins/ucg";
 
   function api(path, options) {
     if (typeof SDK.fetchJSON === "function") return SDK.fetchJSON(BASE + path, options);
@@ -123,7 +123,7 @@
     }
 
     return h("div", { style: S.page },
-      h("div", { style: S.h1 }, "unraid-compose-gateway"),
+      h("div", { style: S.h1 }, "UCG"),
       h("div", { style: S.sub },
         "Connection to a running unraid-compose-gateway sidecar. Blank fields fall back to environment variables."),
 
@@ -205,8 +205,8 @@
   }
 
   if (window.__HERMES_PLUGINS__ && typeof window.__HERMES_PLUGINS__.register === "function") {
-    window.__HERMES_PLUGINS__.register("unraid_compose_gateway", App);
+    window.__HERMES_PLUGINS__.register("ucg", App);
   } else {
-    console.error("[unraid_compose_gateway] window.__HERMES_PLUGINS__.register unavailable");
+    console.error("[ucg] window.__HERMES_PLUGINS__.register unavailable");
   }
 })();

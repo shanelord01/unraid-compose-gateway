@@ -1,6 +1,6 @@
 """Backend for the unraid-compose-gateway dashboard tab.
 
-Mounted at /api/plugins/unraid_compose_gateway/ by the Hermes dashboard.
+Mounted at /api/plugins/ucg/ by the Hermes dashboard.
 """
 
 from __future__ import annotations
@@ -43,7 +43,7 @@ router = APIRouter()
 # loaded as a genuine (synthetic) package instead, under a globally-unique
 # name, so every `from . import x` inside it resolves normally.
 _PLUGIN_DIR = Path(__file__).resolve().parent.parent
-_PKG_NAME = "hermes_unraid_compose_gateway_plugin_pkg"
+_PKG_NAME = "hermes_ucg_plugin_pkg"
 
 if _PKG_NAME not in sys.modules:
     _pkg = types.ModuleType(_PKG_NAME)
@@ -97,7 +97,7 @@ def test_connection() -> Dict[str, Any]:
     try:
         import json
 
-        result = json.loads(_tools.unraid_compose_gateway_whoami({}))
+        result = json.loads(_tools.ucg_whoami({}))
     except Exception as e:  # noqa: BLE001
         return _error(f"{type(e).__name__}: {e}")
     if result.get("error"):

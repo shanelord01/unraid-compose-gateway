@@ -1,4 +1,4 @@
-"""Tool handlers for the unraid_compose_gateway plugin.
+"""Tool handlers for the ucg plugin.
 
 Contract per Hermes plugin rules: handlers accept (args: dict, **kwargs),
 always return a JSON string, and never raise.
@@ -117,20 +117,20 @@ def _require_project(args: dict) -> str | None:
 
 # --- always-registered, read-only tools -------------------------------------
 
-def unraid_compose_gateway_whoami(args: dict, **kwargs) -> str:
+def ucg_whoami(args: dict, **kwargs) -> str:
     """This gateway instance's allowed projects, exclude list, and whether
     plugin update checking is enabled."""
     return json.dumps(_request("GET", "/v1/whoami"))
 
 
-def unraid_compose_gateway_projects(args: dict, **kwargs) -> str:
+def ucg_projects(args: dict, **kwargs) -> str:
     """List every project the gateway is configured to act on, whether it
     has a compose file on disk, and whether it is self-excluded from
     mutating calls."""
     return json.dumps(_request("GET", "/v1/compose/projects"))
 
 
-def unraid_compose_gateway_status(args: dict, **kwargs) -> str:
+def ucg_status(args: dict, **kwargs) -> str:
     """Per-service state (running/exited/etc, health) for one compose
     project."""
     project = _require_project(args)
@@ -139,7 +139,7 @@ def unraid_compose_gateway_status(args: dict, **kwargs) -> str:
     return json.dumps(_request("GET", f"/v1/compose/{urllib.parse.quote(project)}/status"))
 
 
-def unraid_compose_gateway_logs(args: dict, **kwargs) -> str:
+def ucg_logs(args: dict, **kwargs) -> str:
     """Tail logs for any container by name - not restricted to the compose
     allowlist, since reading output is not a control operation."""
     name = str((args or {}).get("name") or "").strip()
@@ -149,7 +149,7 @@ def unraid_compose_gateway_logs(args: dict, **kwargs) -> str:
     return json.dumps(_request("GET", f"/v1/containers/{urllib.parse.quote(name)}/logs", params))
 
 
-def unraid_compose_gateway_plugin_updates(args: dict, **kwargs) -> str:
+def ucg_plugin_updates(args: dict, **kwargs) -> str:
     """Check installed Unraid plugins for available updates, by replicating
     the same local-.plg-vs-remote-.plg version check Unraid's own web UI
     uses. Read-only. Pass force=true to bypass the cache."""
@@ -169,27 +169,27 @@ def _run_action(action: str, args: dict) -> str:
     return json.dumps(_request("POST", f"/v1/compose/{urllib.parse.quote(project)}/{action}"))
 
 
-def unraid_compose_gateway_restart(args: dict, **kwargs) -> str:
+def ucg_restart(args: dict, **kwargs) -> str:
     """Restart a compose project's services. Refused by the gateway itself
     if the project is in its SELF_EXCLUDE_PROJECTS list."""
     return _run_action("restart", args)
 
 
-def unraid_compose_gateway_up(args: dict, **kwargs) -> str:
+def ucg_up(args: dict, **kwargs) -> str:
     """Bring a compose project up (`docker compose up -d`). Refused by the
     gateway itself if the project is in its SELF_EXCLUDE_PROJECTS list."""
     return _run_action("up", args)
 
 
-def unraid_compose_gateway_down(args: dict, **kwargs) -> str:
+def ucg_down(args: dict, **kwargs) -> str:
     """Stop a compose project (`docker compose down`). Refused by the
     gateway itself if the project is in its SELF_EXCLUDE_PROJECTS list."""
     return _run_action("down", args)
 
 
-def unraid_compose_gateway_pull(args: dict, **kwargs) -> str:
+def ucg_pull(args: dict, **kwargs) -> str:
     """Pull the latest images for a compose project's services. Not blocked
     by SELF_EXCLUDE_PROJECTS - pulling only downloads images, it does not
-    recreate a running container. Follow with unraid_compose_gateway_up to actually
+    recreate a running container. Follow with ucg_up to actually
     run the pulled image, which is where self-exclusion applies."""
     return _run_action("pull", args)

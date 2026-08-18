@@ -1,4 +1,4 @@
-name: unraid_compose_gateway
+name: ucg
 version: 0.2.0
 description: >-
   Tools for talking to a running unraid-compose-gateway sidecar: start, stop,
@@ -12,32 +12,32 @@ description: >-
 author: Shane Lord
 provides_tools:
   # Always registered once GATEWAY_URL and GATEWAY_TOKEN are set.
-  - unraid_compose_gateway_whoami
-  - unraid_compose_gateway_projects
-  - unraid_compose_gateway_status
-  - unraid_compose_gateway_logs
-  - unraid_compose_gateway_plugin_updates
+  - ucg_whoami
+  - ucg_projects
+  - ucg_status
+  - ucg_logs
+  - ucg_plugin_updates
   # Registered only when GATEWAY_ALLOW_WRITES is true.
-  - unraid_compose_gateway_restart
-  - unraid_compose_gateway_up
-  - unraid_compose_gateway_down
-  - unraid_compose_gateway_pull
+  - ucg_restart
+  - ucg_up
+  - ucg_down
+  - ucg_pull
 requires_env:
   - name: GATEWAY_URL
     description: "Base URL of the unraid-compose-gateway instance, e.g. http://unraid-compose-gateway:8080"
     secret: false
-    note: "Can also be set from the Compose Gateway dashboard tab."
+    note: "Can also be set from the UCG dashboard tab."
   - name: GATEWAY_TOKEN
     description: "Bearer token the gateway was started with (its own GATEWAY_TOKEN setting - see the gateway's .env.example)"
     secret: true
-    note: "Can also be set from the Compose Gateway dashboard tab."
+    note: "Can also be set from the UCG dashboard tab."
 optional_env:
   - name: GATEWAY_ALLOW_WRITES
     description: "Set to true to register the mutating tools (restart, up, down, pull). Defaults to false - read-only - matching the gateway's own default-safe posture. The gateway's own SELF_EXCLUDE_PROJECTS is enforced regardless of this setting; this only controls whether the agent can attempt writes at all."
     prompt: "Allow compose control? (true/false)"
     secret: false
-    note: "Can also be toggled from the Compose Gateway dashboard tab - either way, a Hermes gateway restart is required for the change in registered tools to take effect."
+    note: "Can also be toggled from the UCG dashboard tab - either way, a Hermes gateway restart is required for the change in registered tools to take effect."
   - name: GATEWAY_TIMEOUT_SECONDS
     description: "HTTP timeout in seconds for calls to the gateway (default 30). Compose actions can legitimately take longer than a typical API call."
     secret: false
-    note: "Can also be set from the Compose Gateway dashboard tab."
+    note: "Can also be set from the UCG dashboard tab."

@@ -1,4 +1,4 @@
-"""Shared settings for the unraid_compose_gateway plugin.
+"""Shared settings for the ucg plugin.
 
 Resolution order is file, then environment, then default - the same
 convention as the other Hermes plugins in this family. The dashboard, if one
@@ -11,7 +11,7 @@ import os
 import threading
 from typing import Any, Dict
 
-SETTINGS_FILENAME = "unraid_compose_gateway_settings.json"
+SETTINGS_FILENAME = "ucg_settings.json"
 
 FIELDS = {
     "gateway_url": ("GATEWAY_URL", ""),

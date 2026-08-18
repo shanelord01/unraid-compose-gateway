@@ -1,10 +1,10 @@
 {
-  "name": "unraid_compose_gateway",
-  "label": "Compose Gateway",
+  "name": "ucg",
+  "label": "UCG",
   "description": "unraid-compose-gateway connection: sidecar URL, token, and whether compose control is allowed.",
   "icon": "Package",
-  "version": "0.1.0",
-  "tab": { "path": "/unraid-compose-gateway", "position": "after:skills" },
+  "version": "0.2.0",
+  "tab": { "path": "/ucg", "position": "after:skills" },
   "entry": "dist/index.js",
   "api": "plugin_api.py"
 }

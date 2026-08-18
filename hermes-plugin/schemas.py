@@ -1,13 +1,13 @@
-"""Tool schemas for the unraid_compose_gateway plugin. Descriptions are what the
+"""Tool schemas for the ucg plugin. Descriptions are what the
 LLM reads - they say when to use each tool and what it returns."""
 
 _PROJECT = {
     "type": "string",
-    "description": "Compose project name, as returned by unraid_compose_gateway_projects",
+    "description": "Compose project name, as returned by ucg_projects",
 }
 
 WHOAMI = {
-    "name": "unraid_compose_gateway_whoami",
+    "name": "ucg_whoami",
     "description": (
         "Check what this unraid-compose-gateway instance is configured to do: "
         "which compose projects it can act on, which of those are excluded "
@@ -18,7 +18,7 @@ WHOAMI = {
 }
 
 PROJECTS = {
-    "name": "unraid_compose_gateway_projects",
+    "name": "ucg_projects",
     "description": (
         "List the Docker Compose projects this gateway is allowed to act on, "
         "whether each actually has a compose file on disk, and whether it is "
@@ -28,7 +28,7 @@ PROJECTS = {
 }
 
 STATUS = {
-    "name": "unraid_compose_gateway_status",
+    "name": "ucg_status",
     "description": (
         "Per-service status for one compose project: running/exited state and "
         "health, if the project defines a healthcheck. Use before or after a "
@@ -42,7 +42,7 @@ STATUS = {
 }
 
 LOGS = {
-    "name": "unraid_compose_gateway_logs",
+    "name": "ucg_logs",
     "description": (
         "Tail recent log lines for any container by name - not limited to "
         "compose-managed ones. Use for troubleshooting a specific service."
@@ -62,7 +62,7 @@ LOGS = {
 }
 
 PLUGIN_UPDATES = {
-    "name": "unraid_compose_gateway_plugin_updates",
+    "name": "ucg_plugin_updates",
     "description": (
         "Check every installed Unraid plugin for an available update, by "
         "comparing the locally installed .plg version against the current one "
@@ -87,7 +87,7 @@ _MUTATING_NOTE = (
 )
 
 RESTART = {
-    "name": "unraid_compose_gateway_restart",
+    "name": "ucg_restart",
     "description": "Restart a compose project's services (`docker compose restart`)." + _MUTATING_NOTE,
     "parameters": {
         "type": "object",
@@ -97,11 +97,11 @@ RESTART = {
 }
 
 UP = {
-    "name": "unraid_compose_gateway_up",
+    "name": "ucg_up",
     "description": (
         "Bring a compose project up in detached mode (`docker compose up -d`). "
         "Recreates containers whose image or config changed; leaves others "
-        "alone. Run unraid_compose_gateway_pull first to actually refresh images."
+        "alone. Run ucg_pull first to actually refresh images."
     )
     + _MUTATING_NOTE,
     "parameters": {
@@ -112,7 +112,7 @@ UP = {
 }
 
 DOWN = {
-    "name": "unraid_compose_gateway_down",
+    "name": "ucg_down",
     "description": "Stop and remove a compose project's containers (`docker compose down`)." + _MUTATING_NOTE,
     "parameters": {
         "type": "object",
@@ -122,12 +122,12 @@ DOWN = {
 }
 
 PULL = {
-    "name": "unraid_compose_gateway_pull",
+    "name": "ucg_pull",
     "description": (
         "Pull the latest images for a compose project's services "
         "(`docker compose pull`). Only downloads images - does not restart or "
         "recreate anything, so this is not blocked by SELF_EXCLUDE_PROJECTS. "
-        "Follow with unraid_compose_gateway_up to actually run the pulled image."
+        "Follow with ucg_up to actually run the pulled image."
     ),
     "parameters": {
         "type": "object",
