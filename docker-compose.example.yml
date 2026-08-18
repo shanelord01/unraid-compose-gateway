@@ -1,0 +1,46 @@
+# Example deployment. Adjust project names, paths, and network to match
+# your own setup - nothing here needs to match this file exactly.
+#
+# The two host mounts are the whole security model:
+#   - docker.sock lets it talk to the Docker daemon at all
+#   - COMPOSE_PROJECTS_DIR lets it find compose files for the projects
+#     you've allowed in ALLOWED_PROJECTS
+# Mount only what you intend to expose. A caller can only ever act on
+# projects actually reachable under COMPOSE_PROJECTS_DIR.
+
+services:
+  compose-sentry:
+    build: .
+    # or, once published: image: ghcr.io/shanelord01/compose-sentry:latest
+    container_name: compose-sentry
+    restart: unless-stopped
+    environment:
+      SENTRY_TOKEN: ${SENTRY_TOKEN}
+      ALLOWED_PROJECTS: app,monitoring
+      SELF_EXCLUDE_PROJECTS: agent
+      COMPOSE_PROJECTS_DIR: /compose-projects
+      # Optional - omit both lines entirely to disable plugin update
+      # checking. Unraid-specific; irrelevant on other hosts.
+      # PLUGIN_DIR: /unraid-plugins
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /path/to/your/compose-projects:/compose-projects:ro
+      # - /boot/config/plugins:/unraid-plugins:ro
+    ports:
+      - "8080:8080"
+    networks:
+      - internal
+
+  agent:
+    image: your-agent-image:latest
+    container_name: agent
+    restart: unless-stopped
+    environment:
+      COMPOSE_SENTRY_URL: http://compose-sentry:8080
+      COMPOSE_SENTRY_TOKEN: ${SENTRY_TOKEN}
+    networks:
+      - internal
+
+networks:
+  internal:
+    driver: bridge
