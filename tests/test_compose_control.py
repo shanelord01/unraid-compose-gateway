@@ -82,8 +82,41 @@ def test_run_action_success_invokes_expected_docker_compose_command(settings):
     assert result.action == "restart"
     called_command = run.call_args.args[0]
     assert called_command[:2] == ["docker", "compose"]
-    assert "-p" in called_command and "app" in called_command
+    # Deliberately no -p: the project name is left for Compose to infer from
+    # the file's own `name:` field, matching how Unraid's Compose Manager
+    # itself invokes compose (directory names and declared project names
+    # routinely differ there, e.g. dir "Hermes" / name: hermes).
+    assert "-p" not in called_command
     assert called_command[-1] == "restart"
+
+
+def test_run_action_runs_with_project_directory_as_cwd(settings):
+    make_compose_project(_dir(settings), "app")
+    with patch("unraid_compose_gateway.compose_control.subprocess.run") as run:
+        run.return_value = MagicMock(returncode=0, stdout="done\n", stderr="")
+        compose_control.run_action("app", "restart", settings)
+    assert run.call_args.kwargs["cwd"] == str(_dir(settings) / "app")
+
+
+def test_run_action_includes_override_file_when_present(settings):
+    project_dir = _dir(settings) / "app"
+    make_compose_project(_dir(settings), "app")
+    (project_dir / "docker-compose.override.yml").write_text("services: {}\n")
+    with patch("unraid_compose_gateway.compose_control.subprocess.run") as run:
+        run.return_value = MagicMock(returncode=0, stdout="done\n", stderr="")
+        compose_control.run_action("app", "up", settings)
+    called_command = run.call_args.args[0]
+    assert called_command.count("-f") == 2
+    assert str(project_dir / "docker-compose.override.yml") in called_command
+
+
+def test_run_action_omits_override_flag_when_no_override_file(settings):
+    make_compose_project(_dir(settings), "app")
+    with patch("unraid_compose_gateway.compose_control.subprocess.run") as run:
+        run.return_value = MagicMock(returncode=0, stdout="done\n", stderr="")
+        compose_control.run_action("app", "up", settings)
+    called_command = run.call_args.args[0]
+    assert called_command.count("-f") == 1
 
 
 def test_run_action_raises_on_nonzero_exit(settings):

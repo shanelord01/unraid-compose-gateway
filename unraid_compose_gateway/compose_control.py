@@ -26,6 +26,13 @@ _COMPOSE_FILE_NAMES = (
     "compose.yaml",
 )
 
+_OVERRIDE_FILE_NAMES = (
+    "docker-compose.override.yml",
+    "docker-compose.override.yaml",
+    "compose.override.yml",
+    "compose.override.yaml",
+)
+
 
 class ProjectNotAllowed(Exception):
     """Raised when a project name is not in ALLOWED_PROJECTS."""
@@ -54,12 +61,23 @@ class ResolvedProject:
     name: str
     dir_path: str
     compose_file: str
+    override_file: str | None = None
 
 
 def _find_compose_file(project_dir: str) -> str | None:
     import os
 
     for candidate in _COMPOSE_FILE_NAMES:
+        full = os.path.join(project_dir, candidate)
+        if os.path.isfile(full):
+            return full
+    return None
+
+
+def _find_override_file(project_dir: str) -> str | None:
+    import os
+
+    for candidate in _OVERRIDE_FILE_NAMES:
         full = os.path.join(project_dir, candidate)
         if os.path.isfile(full):
             return full
@@ -73,7 +91,12 @@ def _resolve(project: str, settings: Settings) -> ResolvedProject:
     compose_file = _find_compose_file(project_dir)
     if compose_file is None:
         raise ProjectNotFound(f"no compose file found under {project_dir}")
-    return ResolvedProject(name=project, dir_path=project_dir, compose_file=compose_file)
+    return ResolvedProject(
+        name=project,
+        dir_path=project_dir,
+        compose_file=compose_file,
+        override_file=_find_override_file(project_dir),
+    )
 
 
 def _check_target(project: str, settings: Settings, *, mutating: bool) -> None:
@@ -141,10 +164,27 @@ class _RunResult:
 
 
 def _run_compose(resolved: ResolvedProject, args: list[str], settings: Settings) -> _RunResult:
-    command = ["docker", "compose", "-p", resolved.name, "-f", resolved.compose_file, *args]
+    # No -p: the project name is deliberately left for Compose to infer from
+    # the file's own top-level `name:` field (falling back to the directory
+    # basename if absent), exactly like running `docker compose` by hand
+    # from inside the project directory. Unraid's Compose Manager itself
+    # relies on this - project directories are commonly capitalized (e.g.
+    # "Hermes") while the compose file underneath declares a lowercase
+    # `name: hermes`. Forcing -p to the directory/allowlist name here would
+    # create a second, mismatched project namespace instead of managing the
+    # containers that are actually running.
+    command = ["docker", "compose", "-f", resolved.compose_file]
+    if resolved.override_file:
+        # Passing an explicit -f suppresses Compose's own automatic
+        # docker-compose.override.yml merge, so it is added back by hand -
+        # otherwise `up` would recreate containers without whatever the
+        # override file sets (Unraid's own management labels, for example).
+        command += ["-f", resolved.override_file]
+    command += args
     try:
         completed = subprocess.run(
             command,
+            cwd=resolved.dir_path,
             capture_output=True,
             text=True,
             timeout=settings.compose_timeout_seconds,
