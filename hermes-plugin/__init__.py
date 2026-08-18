@@ -12,31 +12,31 @@ plugin.
 from . import schemas, settings, tools
 
 _READ_TOOLS = (
-    ("compose_gateway_whoami", schemas.WHOAMI, tools.compose_gateway_whoami),
-    ("compose_gateway_projects", schemas.PROJECTS, tools.compose_gateway_projects),
-    ("compose_gateway_status", schemas.STATUS, tools.compose_gateway_status),
-    ("compose_gateway_logs", schemas.LOGS, tools.compose_gateway_logs),
-    ("compose_gateway_plugin_updates", schemas.PLUGIN_UPDATES, tools.compose_gateway_plugin_updates),
+    ("unraid_compose_gateway_whoami", schemas.WHOAMI, tools.unraid_compose_gateway_whoami),
+    ("unraid_compose_gateway_projects", schemas.PROJECTS, tools.unraid_compose_gateway_projects),
+    ("unraid_compose_gateway_status", schemas.STATUS, tools.unraid_compose_gateway_status),
+    ("unraid_compose_gateway_logs", schemas.LOGS, tools.unraid_compose_gateway_logs),
+    ("unraid_compose_gateway_plugin_updates", schemas.PLUGIN_UPDATES, tools.unraid_compose_gateway_plugin_updates),
 )
 
 _WRITE_TOOLS = (
-    ("compose_gateway_restart", schemas.RESTART, tools.compose_gateway_restart),
-    ("compose_gateway_up", schemas.UP, tools.compose_gateway_up),
-    ("compose_gateway_down", schemas.DOWN, tools.compose_gateway_down),
-    ("compose_gateway_pull", schemas.PULL, tools.compose_gateway_pull),
+    ("unraid_compose_gateway_restart", schemas.RESTART, tools.unraid_compose_gateway_restart),
+    ("unraid_compose_gateway_up", schemas.UP, tools.unraid_compose_gateway_up),
+    ("unraid_compose_gateway_down", schemas.DOWN, tools.unraid_compose_gateway_down),
+    ("unraid_compose_gateway_pull", schemas.PULL, tools.unraid_compose_gateway_pull),
 )
 
 
 def register(ctx):
     for name, schema, handler in _READ_TOOLS:
-        ctx.register_tool(name=name, toolset="compose_gateway", schema=schema, handler=handler)
+        ctx.register_tool(name=name, toolset="unraid_compose_gateway", schema=schema, handler=handler)
 
     if bool(settings.load().get("allow_writes")):
         for name, schema, handler in _WRITE_TOOLS:
-            ctx.register_tool(name=name, toolset="compose_gateway", schema=schema, handler=handler)
+            ctx.register_tool(name=name, toolset="unraid_compose_gateway", schema=schema, handler=handler)
 
     def _handle_gateway(raw_args: str) -> str:
-        return tools.compose_gateway_whoami({})
+        return tools.unraid_compose_gateway_whoami({})
 
     ctx.register_command(
         "gateway",

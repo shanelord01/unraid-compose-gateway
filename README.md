@@ -76,11 +76,13 @@ Because it is a subdirectory rather than the repo root, Hermes's one-line instal
 
 ```bash
 git clone https://github.com/shanelord01/unraid-compose-gateway.git
-cp -r unraid-compose-gateway/hermes-plugin ~/.hermes/plugins/compose_gateway
-# that is /opt/data/plugins/compose_gateway/ inside the Hermes Docker image
+cp -r unraid-compose-gateway/hermes-plugin ~/.hermes/plugins/unraid_compose_gateway
+# that is /opt/data/plugins/unraid_compose_gateway/ inside the Hermes Docker image
 ```
 
-Then set its environment variables and restart the Hermes gateway:
+It also adds a **Compose Gateway** tab to the Hermes dashboard - `GATEWAY_URL`, `GATEWAY_TOKEN`, `GATEWAY_ALLOW_WRITES`, and `GATEWAY_TIMEOUT_SECONDS` can all be set there instead of as environment variables, with a "Test connection" button that calls the gateway's own `/v1/whoami` to prove the URL and token actually work. Either way, a Hermes gateway restart is required for a `GATEWAY_ALLOW_WRITES` change to take effect, since tool registration happens once at startup.
+
+Set its environment variables (or the dashboard fields) and restart the Hermes gateway:
 
 | Variable | Required | Purpose |
 |---|---|---|
@@ -91,17 +93,17 @@ Then set its environment variables and restart the Hermes gateway:
 
 | Tool | Gated by GATEWAY_ALLOW_WRITES? | What it does |
 |---|---|---|
-| `compose_gateway_whoami` | no | The gateway's allowed projects, exclude list, and whether plugin-update checking is enabled |
-| `compose_gateway_projects` | no | List projects the gateway can act on |
-| `compose_gateway_status` | no | Per-service status for one project |
-| `compose_gateway_logs` | no | Tail logs for any container by name |
-| `compose_gateway_plugin_updates` | no | Check installed Unraid plugins for available updates |
-| `compose_gateway_restart` | yes | Restart a project's services |
-| `compose_gateway_up` | yes | `docker compose up -d` |
-| `compose_gateway_down` | yes | `docker compose down` |
-| `compose_gateway_pull` | yes | Pull the latest images for a project's services |
+| `unraid_compose_gateway_whoami` | no | The gateway's allowed projects, exclude list, and whether plugin-update checking is enabled |
+| `unraid_compose_gateway_projects` | no | List projects the gateway can act on |
+| `unraid_compose_gateway_status` | no | Per-service status for one project |
+| `unraid_compose_gateway_logs` | no | Tail logs for any container by name |
+| `unraid_compose_gateway_plugin_updates` | no | Check installed Unraid plugins for available updates |
+| `unraid_compose_gateway_restart` | yes | Restart a project's services |
+| `unraid_compose_gateway_up` | yes | `docker compose up -d` |
+| `unraid_compose_gateway_down` | yes | `docker compose down` |
+| `unraid_compose_gateway_pull` | yes | Pull the latest images for a project's services |
 
-This plugin only detects Unraid plugin updates, it does not apply them - applying one means running that plugin's install script as root on the host, a different trust level than anything else this gateway does. If you also run [hermes-unraid](https://github.com/shanelord01/hermes-unraid), its `unraid_install_plugin` tool is what actually applies an update this plugin found: `unraid_install_plugin` installs or updates a plugin from its `.plg` URL, which is exactly what `compose_gateway_plugin_updates` returns for anything with `update_available: true`. The two plugins are complementary - one detects, the other applies, and applying stays a distinct, deliberate step either way.
+This plugin only detects Unraid plugin updates, it does not apply them - applying one means running that plugin's install script as root on the host, a different trust level than anything else this gateway does. If you also run [hermes-unraid](https://github.com/shanelord01/hermes-unraid), its `unraid_install_plugin` tool is what actually applies an update this plugin found: `unraid_install_plugin` installs or updates a plugin from its `.plg` URL, which is exactly what `unraid_compose_gateway_plugin_updates` returns for anything with `update_available: true`. The two plugins are complementary - one detects, the other applies, and applying stays a distinct, deliberate step either way.
 
 ## Plugin update detection
 
