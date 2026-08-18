@@ -5,9 +5,9 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
-from compose_sentry import compose_control, logs
-from compose_sentry.app import app
-from compose_sentry.state import get_settings
+from unraid_compose_gateway import compose_control, logs
+from unraid_compose_gateway.app import app
+from unraid_compose_gateway.state import get_settings
 
 
 @pytest.fixture
@@ -61,7 +61,7 @@ def test_compose_restart_on_disallowed_project_returns_403(client, settings):
 
 def test_compose_restart_success(client, settings):
     with patch.object(compose_control, "run_action") as run_action:
-        from compose_sentry.models import ComposeActionResult
+        from unraid_compose_gateway.models import ComposeActionResult
 
         run_action.return_value = ComposeActionResult(
             project="app", action="restart", exit_code=0, output="ok"

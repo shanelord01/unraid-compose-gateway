@@ -4,7 +4,7 @@ import pytest
 import respx
 from httpx import Response
 
-from compose_sentry import plugins
+from unraid_compose_gateway import plugins
 
 SAMPLE_PLG = """<?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <!DOCTYPE PLUGIN [

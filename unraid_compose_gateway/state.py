@@ -7,7 +7,7 @@ without touching environment variables or reloading modules.
 
 from __future__ import annotations
 
-from compose_sentry.config import Settings, load_settings
+from unraid_compose_gateway.config import Settings, load_settings
 
 _settings: Settings | None = None
 

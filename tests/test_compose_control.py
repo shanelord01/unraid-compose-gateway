@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from compose_sentry import compose_control
+from unraid_compose_gateway import compose_control
 from tests.conftest import make_compose_project
 
 
@@ -49,7 +49,7 @@ def test_get_status_read_only_allowed_even_for_self_excluded(settings):
     """Reading status is not a control operation, so the self-exclude list
     must not block it - only mutating actions are gated."""
     make_compose_project(_dir(settings), "protected")
-    with patch("compose_sentry.compose_control._run_compose") as run_compose:
+    with patch("unraid_compose_gateway.compose_control._run_compose") as run_compose:
         run_compose.return_value = compose_control._RunResult(exit_code=0, output="[]")
         services = compose_control.get_status("protected", settings)
     assert services == []
@@ -57,7 +57,7 @@ def test_get_status_read_only_allowed_even_for_self_excluded(settings):
 
 def test_run_action_success_invokes_expected_docker_compose_command(settings):
     make_compose_project(_dir(settings), "app")
-    with patch("compose_sentry.compose_control.subprocess.run") as run:
+    with patch("unraid_compose_gateway.compose_control.subprocess.run") as run:
         run.return_value = MagicMock(returncode=0, stdout="done\n", stderr="")
         result = compose_control.run_action("app", "restart", settings)
 
@@ -71,7 +71,7 @@ def test_run_action_success_invokes_expected_docker_compose_command(settings):
 
 def test_run_action_raises_on_nonzero_exit(settings):
     make_compose_project(_dir(settings), "app")
-    with patch("compose_sentry.compose_control.subprocess.run") as run:
+    with patch("unraid_compose_gateway.compose_control.subprocess.run") as run:
         run.return_value = MagicMock(returncode=1, stdout="", stderr="boom")
         with pytest.raises(compose_control.ComposeCommandFailed) as excinfo:
             compose_control.run_action("app", "up", settings)

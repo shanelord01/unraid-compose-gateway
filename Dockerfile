@@ -20,7 +20,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY compose_sentry/ compose_sentry/
+COPY unraid_compose_gateway/ unraid_compose_gateway/
 
 # Runs as root: it needs to reach the mounted docker.sock, and there is no
 # safe way to drop privileges on that socket from inside the container -
@@ -28,4 +28,4 @@ COPY compose_sentry/ compose_sentry/
 # itself. Scope what this container can do by not mounting more than
 # docker.sock, COMPOSE_PROJECTS_DIR, and (optionally) PLUGIN_DIR.
 EXPOSE 8080
-CMD ["python", "-m", "compose_sentry"]
+CMD ["python", "-m", "unraid_compose_gateway"]

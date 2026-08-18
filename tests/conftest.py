@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from compose_sentry.config import Settings
+from unraid_compose_gateway.config import Settings
 
 
 @pytest.fixture

@@ -8,10 +8,10 @@ from __future__ import annotations
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.responses import JSONResponse
 
-from compose_sentry import compose_control, logs, plugins
-from compose_sentry.auth import require_token
-from compose_sentry.config import Settings
-from compose_sentry.models import (
+from unraid_compose_gateway import compose_control, logs, plugins
+from unraid_compose_gateway.auth import require_token
+from unraid_compose_gateway.config import Settings
+from unraid_compose_gateway.models import (
     ComposeActionResult,
     ComposeProject,
     ComposeProjectStatus,
@@ -19,10 +19,10 @@ from compose_sentry.models import (
     PluginUpdatesResponse,
     WhoAmI,
 )
-from compose_sentry.state import get_settings
+from unraid_compose_gateway.state import get_settings
 
 app = FastAPI(
-    title="compose-sentry",
+    title="unraid-compose-gateway",
     version="0.1.0",
     description=(
         "A scoped sidecar for Docker Compose control, container logs, and "
@@ -161,5 +161,5 @@ async def unhandled_exception_handler(request, exc: Exception) -> JSONResponse: 
     # caller, since it could contain paths or command output.
     import logging
 
-    logging.getLogger("compose_sentry").exception("unhandled error in %s", request.url.path)
+    logging.getLogger("unraid_compose_gateway").exception("unhandled error in %s", request.url.path)
     return JSONResponse(status_code=500, content={"detail": "internal error"})

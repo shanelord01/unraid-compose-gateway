@@ -13,7 +13,7 @@ from __future__ import annotations
 import docker
 from docker.errors import NotFound
 
-from compose_sentry.config import Settings
+from unraid_compose_gateway.config import Settings
 
 
 class ContainerNotFound(Exception):

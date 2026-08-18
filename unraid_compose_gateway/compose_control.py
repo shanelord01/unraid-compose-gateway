@@ -16,8 +16,8 @@ import json
 import subprocess
 from dataclasses import dataclass
 
-from compose_sentry.config import Settings
-from compose_sentry.models import ComposeActionResult, ComposeProject, ComposeService
+from unraid_compose_gateway.config import Settings
+from unraid_compose_gateway.models import ComposeActionResult, ComposeProject, ComposeService
 
 _COMPOSE_FILE_NAMES = (
     "docker-compose.yml",

@@ -9,13 +9,13 @@
 # projects actually reachable under COMPOSE_PROJECTS_DIR.
 
 services:
-  compose-sentry:
+  unraid-compose-gateway:
     build: .
-    # or, once published: image: ghcr.io/shanelord01/compose-sentry:latest
-    container_name: compose-sentry
+    # or, once published: image: ghcr.io/shanelord01/unraid-compose-gateway:latest
+    container_name: unraid-compose-gateway
     restart: unless-stopped
     environment:
-      SENTRY_TOKEN: ${SENTRY_TOKEN}
+      GATEWAY_TOKEN: ${GATEWAY_TOKEN}
       ALLOWED_PROJECTS: app,monitoring
       SELF_EXCLUDE_PROJECTS: agent
       COMPOSE_PROJECTS_DIR: /compose-projects
@@ -36,8 +36,8 @@ services:
     container_name: agent
     restart: unless-stopped
     environment:
-      COMPOSE_SENTRY_URL: http://compose-sentry:8080
-      COMPOSE_SENTRY_TOKEN: ${SENTRY_TOKEN}
+      GATEWAY_URL: http://unraid-compose-gateway:8080
+      GATEWAY_TOKEN: ${GATEWAY_TOKEN}
     networks:
       - internal
 

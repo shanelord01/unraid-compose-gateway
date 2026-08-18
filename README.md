@@ -1,4 +1,4 @@
-# compose-sentry
+# unraid-compose-gateway
 
 A small HTTP sidecar that gives an automation client - an AI agent, a script, anything - scoped control over specific Docker Compose projects and read access to container logs, without ever handing it `docker.sock` directly. It also detects available updates for Unraid plugins, a check Unraid's own API cannot do.
 
@@ -6,7 +6,7 @@ A small HTTP sidecar that gives an automation client - an AI agent, a script, an
 
 Docker's socket is all-or-nothing. Mount it into a container and that container can control every other container on the host, including itself - there is no built-in way to say "you can restart these three services but never touch your own container." Generic socket proxies help at the API-verb level (allow `GET /containers`, deny `POST /containers/*/stop`) but none of them filter by *which* container is the target, so they cannot express "control anything except this one" either.
 
-compose-sentry sits in front of the socket instead of exposing it. It never forwards raw Docker API calls - it has a small, fixed set of endpoints, and every mutating one checks the target project against an exclude list before it does anything. The exclusion is enforced here, server-side, not left to the calling client to police itself.
+unraid-compose-gateway sits in front of the socket instead of exposing it. It never forwards raw Docker API calls - it has a small, fixed set of endpoints, and every mutating one checks the target project against an exclude list before it does anything. The exclusion is enforced here, server-side, not left to the calling client to police itself.
 
 ## What it does
 
@@ -29,14 +29,14 @@ What it deliberately does not do: install or apply plugin updates, run arbitrary
 
 ```bash
 cp .env.example .env
-# edit .env: set SENTRY_TOKEN, ALLOWED_PROJECTS, SELF_EXCLUDE_PROJECTS
+# edit .env: set GATEWAY_TOKEN, ALLOWED_PROJECTS, SELF_EXCLUDE_PROJECTS
 docker compose -f docker-compose.example.yml up -d
 ```
 
 See [`docker-compose.example.yml`](docker-compose.example.yml) for a complete example, including how a calling agent container reaches it.
 
 ```bash
-curl -H "Authorization: Bearer $SENTRY_TOKEN" http://localhost:8080/v1/whoami
+curl -H "Authorization: Bearer $GATEWAY_TOKEN" http://localhost:8080/v1/whoami
 ```
 
 ## API reference
@@ -63,7 +63,7 @@ All configuration is environment variables - see [`.env.example`](.env.example) 
 
 | Variable | Required | Purpose |
 |---|---|---|
-| `SENTRY_TOKEN` | yes | Bearer token every request must present |
+| `GATEWAY_TOKEN` | yes | Bearer token every request must present |
 | `ALLOWED_PROJECTS` | for compose control | Comma-separated compose project names this instance will act on |
 | `SELF_EXCLUDE_PROJECTS` | recommended | Subset of the above that mutating calls always refuse |
 

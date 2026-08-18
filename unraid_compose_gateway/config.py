@@ -38,10 +38,10 @@ class Settings:
 
 
 def load_settings() -> Settings:
-    token = os.environ.get("SENTRY_TOKEN", "").strip()
+    token = os.environ.get("GATEWAY_TOKEN", "").strip()
     if not token:
         raise RuntimeError(
-            "SENTRY_TOKEN is required - set it to a long random value. "
+            "GATEWAY_TOKEN is required - set it to a long random value. "
             "Every request must present it as 'Authorization: Bearer <token>'."
         )
 

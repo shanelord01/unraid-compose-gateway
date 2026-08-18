@@ -30,8 +30,8 @@ from datetime import datetime, timezone
 
 import httpx
 
-from compose_sentry.config import Settings
-from compose_sentry.models import PluginUpdate
+from unraid_compose_gateway.config import Settings
+from unraid_compose_gateway.models import PluginUpdate
 
 _ENTITY_RE = re.compile(r'<!ENTITY\s+(\S+)\s+"([^"]*)"\s*>')
 _ENTITY_REF_RE = re.compile(r"&(\w+);")

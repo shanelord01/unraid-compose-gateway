@@ -14,8 +14,8 @@ import hmac
 
 from fastapi import Depends, HTTPException, Request, status
 
-from compose_sentry.config import Settings
-from compose_sentry.state import get_settings
+from unraid_compose_gateway.config import Settings
+from unraid_compose_gateway.state import get_settings
 
 
 def require_token(request: Request, settings: Settings = Depends(get_settings)) -> None:
