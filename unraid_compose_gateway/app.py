@@ -116,6 +116,16 @@ def compose_down(project: str, settings: Settings = Depends(get_settings)) -> Co
     return _run_action_route(project, "down", settings)
 
 
+@app.post(
+    "/v1/compose/{project}/pull",
+    response_model=ComposeActionResult,
+    tags=["compose"],
+    dependencies=[Depends(require_token)],
+)
+def compose_pull(project: str, settings: Settings = Depends(get_settings)) -> ComposeActionResult:
+    return _run_action_route(project, "pull", settings)
+
+
 @app.get(
     "/v1/containers/{name}/logs",
     response_model=ContainerLogs,

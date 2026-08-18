@@ -108,13 +108,27 @@ def get_status(project: str, settings: Settings) -> list[ComposeService]:
     return _parse_ps_output(result.output)
 
 
+_ACTION_ARGS = {
+    "up": ["up", "-d"],
+    "down": ["down"],
+    "restart": ["restart"],
+    "pull": ["pull"],
+}
+
+# `pull` only downloads images into local storage - it does not touch a
+# running container until a later `up` recreates it - so it is exempt from
+# SELF_EXCLUDE_PROJECTS. The step that would actually disrupt a protected
+# project (`up`) stays gated; pre-fetching an image for it is harmless.
+_SELF_EXCLUDE_EXEMPT_ACTIONS = {"pull"}
+
+
 def run_action(project: str, action: str, settings: Settings) -> ComposeActionResult:
-    if action not in ("up", "down", "restart"):
+    if action not in _ACTION_ARGS:
         raise ValueError(f"unsupported action: {action}")
-    _check_target(project, settings, mutating=True)
+    mutating = action not in _SELF_EXCLUDE_EXEMPT_ACTIONS
+    _check_target(project, settings, mutating=mutating)
     resolved = _resolve(project, settings)
-    args = {"up": ["up", "-d"], "down": ["down"], "restart": ["restart"]}[action]
-    result = _run_compose(resolved, args, settings)
+    result = _run_compose(resolved, _ACTION_ARGS[action], settings)
     return ComposeActionResult(
         project=project, action=action, exit_code=result.exit_code, output=result.output
     )

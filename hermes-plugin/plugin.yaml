@@ -1,0 +1,39 @@
+name: compose_gateway
+version: 0.1.0
+description: >-
+  Tools for talking to a running unraid-compose-gateway sidecar: start, stop,
+  restart, and pull images for specific Docker Compose projects; read
+  container logs; and check for available Unraid plugin updates. The sidecar
+  enforces its own allowlist and a self-exclude list server-side, so this
+  plugin cannot make the agent's own project reachable by asking differently -
+  the boundary lives in the sidecar, not here. Mutating tools (restart, up,
+  down) are only registered when GATEWAY_ALLOW_WRITES is set; read tools and
+  plugin-update detection are always available once the sidecar is reachable.
+author: Shane Lord
+provides_tools:
+  # Always registered once GATEWAY_URL and GATEWAY_TOKEN are set.
+  - compose_gateway_whoami
+  - compose_gateway_projects
+  - compose_gateway_status
+  - compose_gateway_logs
+  - compose_gateway_plugin_updates
+  # Registered only when GATEWAY_ALLOW_WRITES is true.
+  - compose_gateway_restart
+  - compose_gateway_up
+  - compose_gateway_down
+  - compose_gateway_pull
+requires_env:
+  - name: GATEWAY_URL
+    description: "Base URL of the unraid-compose-gateway instance, e.g. http://unraid-compose-gateway:8080"
+    secret: false
+  - name: GATEWAY_TOKEN
+    description: "Bearer token the gateway was started with (its own GATEWAY_TOKEN setting - see the gateway's .env.example)"
+    secret: true
+optional_env:
+  - name: GATEWAY_ALLOW_WRITES
+    description: "Set to true to register the mutating tools (restart, up, down, pull). Defaults to false - read-only - matching the gateway's own default-safe posture. The gateway's own SELF_EXCLUDE_PROJECTS is enforced regardless of this setting; this only controls whether the agent can attempt writes at all."
+    prompt: "Allow compose control? (true/false)"
+    secret: false
+  - name: GATEWAY_TIMEOUT_SECONDS
+    description: "HTTP timeout in seconds for calls to the gateway (default 30). Compose actions can legitimately take longer than a typical API call."
+    secret: false

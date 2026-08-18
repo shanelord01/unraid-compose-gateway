@@ -40,6 +40,23 @@ def test_run_action_rejects_self_excluded_regardless_of_action(settings):
             compose_control.run_action("protected", action, settings)
 
 
+def test_pull_is_exempt_from_self_exclusion(settings):
+    """Pulling images does not touch a running container, so a self-excluded
+    project can still have its images refreshed - only `up` is blocked."""
+    make_compose_project(_dir(settings), "protected")
+    with patch("unraid_compose_gateway.compose_control.subprocess.run") as run:
+        run.return_value = MagicMock(returncode=0, stdout="pulled\n", stderr="")
+        result = compose_control.run_action("protected", "pull", settings)
+    assert result.exit_code == 0
+    assert result.action == "pull"
+
+
+def test_up_still_blocked_after_pull_on_self_excluded_project(settings):
+    make_compose_project(_dir(settings), "protected")
+    with pytest.raises(compose_control.ProjectSelfExcluded):
+        compose_control.run_action("protected", "up", settings)
+
+
 def test_run_action_rejects_missing_compose_file(settings):
     with pytest.raises(compose_control.ProjectNotFound):
         compose_control.run_action("app", "restart", settings)

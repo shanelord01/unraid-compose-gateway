@@ -71,6 +71,19 @@ def test_compose_restart_success(client, settings):
     assert response.json()["exit_code"] == 0
 
 
+def test_compose_pull_on_self_excluded_project_succeeds(client, settings):
+    """pull is exempt from SELF_EXCLUDE_PROJECTS at the HTTP layer too."""
+    with patch.object(compose_control, "run_action") as run_action:
+        from unraid_compose_gateway.models import ComposeActionResult
+
+        run_action.return_value = ComposeActionResult(
+            project="protected", action="pull", exit_code=0, output="pulled"
+        )
+        response = client.post("/v1/compose/protected/pull", headers=auth_headers(settings))
+    assert response.status_code == 200
+    assert response.json()["action"] == "pull"
+
+
 def test_container_logs_not_found_returns_404(client, settings):
     with patch.object(logs, "get_logs", side_effect=logs.ContainerNotFound("no container named 'x'")):
         response = client.get("/v1/containers/x/logs", headers=auth_headers(settings))

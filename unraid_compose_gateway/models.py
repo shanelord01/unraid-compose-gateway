@@ -35,7 +35,7 @@ class ComposeProjectStatus(BaseModel):
 
 class ComposeActionResult(BaseModel):
     project: str
-    action: Literal["up", "down", "restart"]
+    action: Literal["up", "down", "restart", "pull"]
     exit_code: int
     output: str
 
