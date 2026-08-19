@@ -33,11 +33,14 @@ jobs:
       - name: Sync hermes-plugin/ into hermes-ucg
         run: |
           set -euo pipefail
-          # README.md and LICENSE are hermes-ucg's own, not mirrored - the
-          # source directory has neither, but --delete would still remove
-          # them from the destination if they weren't excluded explicitly.
+          # README.md, LICENSE, and .gitignore are hermes-ucg's own, not
+          # mirrored - the source directory has none of them, but --delete
+          # would still remove them from the destination if they weren't
+          # excluded explicitly (confirmed live: a first manual sync
+          # without this exclusion deleted hermes-ucg's .gitignore).
           rsync -a --delete \
             --exclude='.git' \
+            --exclude='.gitignore' \
             --exclude='README.md' \
             --exclude='LICENSE' \
             hermes-plugin/ hermes-ucg/
