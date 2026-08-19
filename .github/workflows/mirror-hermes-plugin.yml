@@ -1,0 +1,57 @@
+name: Mirror hermes-plugin to hermes-ucg
+
+# hermes-plugin/ is the source of truth for the Hermes plugin (versioned
+# together with the gateway API it calls - see README's "Hermes plugin"
+# section for why it isn't its own repo). Hermes's plugin installer needs
+# plugin.yaml at a repo ROOT to be installable/updatable though, so this
+# mirrors the subdirectory's contents into a plain, generated,
+# never-hand-edited repo on every push that touches it.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "hermes-plugin/**"
+  workflow_dispatch: {}
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout unraid-compose-gateway
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Checkout hermes-ucg
+        uses: actions/checkout@v4
+        with:
+          repository: shanelord01/hermes-ucg
+          token: ${{ secrets.HERMES_UCG_TOKEN }}
+          path: hermes-ucg
+          fetch-depth: 1
+
+      - name: Sync hermes-plugin/ into hermes-ucg
+        run: |
+          set -euo pipefail
+          # README.md and LICENSE are hermes-ucg's own, not mirrored - the
+          # source directory has neither, but --delete would still remove
+          # them from the destination if they weren't excluded explicitly.
+          rsync -a --delete \
+            --exclude='.git' \
+            --exclude='README.md' \
+            --exclude='LICENSE' \
+            hermes-plugin/ hermes-ucg/
+
+      - name: Commit and push if changed
+        working-directory: hermes-ucg
+        run: |
+          set -euo pipefail
+          git config user.name "unraid-compose-gateway-mirror-bot"
+          git config user.email "actions@users.noreply.github.com"
+          if git status --porcelain | grep -q .; then
+            git add -A
+            git commit -m "Mirror hermes-plugin/ from unraid-compose-gateway@${GITHUB_SHA}"
+            git push origin main
+          else
+            echo "No changes to mirror."
+          fi

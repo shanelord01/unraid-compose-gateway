@@ -70,14 +70,13 @@ All configuration is environment variables - see [`.env.example`](.env.example) 
 
 ## Hermes plugin
 
-[`hermes-plugin/`](hermes-plugin/) is a [Hermes Agent](https://hermes-agent.nousresearch.com/) plugin that talks to a running instance of this gateway over HTTP. It lives in this repo rather than a separate one because the two are versioned together - a change to the gateway's API and the plugin that calls it should land in the same commit.
+[`hermes-plugin/`](hermes-plugin/) is a [Hermes Agent](https://hermes-agent.nousresearch.com/) plugin that talks to a running instance of this gateway over HTTP. It lives in this repo, not a separate one, because the two are versioned together - a change to the gateway's API and the plugin that calls it should land in the same commit. **This directory is the source of truth for the plugin; edit it here.**
 
-Because it is a subdirectory rather than the repo root, Hermes's one-line installer (`hermes plugins install owner/repo`, which expects `plugin.yaml` at the repo root) does not apply here. Install it manually instead:
+Because it is a subdirectory rather than the repo root, Hermes's one-line installer (`hermes plugins install owner/repo`, which expects `plugin.yaml` at the repo root) does not apply directly to this repo. Instead, [`.github/workflows/mirror-hermes-plugin.yml`](.github/workflows/mirror-hermes-plugin.yml) mirrors this directory's contents to [**shanelord01/hermes-ucg**](https://github.com/shanelord01/hermes-ucg) on every push to `main` that touches `hermes-plugin/**` - a plain root-level repo Hermes's installer works with normally, generated from here, never edited directly. Install/update from there:
 
 ```bash
-git clone https://github.com/shanelord01/unraid-compose-gateway.git
-cp -r unraid-compose-gateway/hermes-plugin ~/.hermes/plugins/ucg
-# that is /opt/data/plugins/ucg/ inside the Hermes Docker image
+hermes plugins install shanelord01/hermes-ucg
+hermes plugins update ucg   # later, to pick up a new mirrored commit - "ucg" per plugin.yaml's name, not the repo name
 ```
 
 It also adds a **UCG** tab to the Hermes dashboard - `GATEWAY_URL`, `GATEWAY_TOKEN`, `GATEWAY_ALLOW_WRITES`, and `GATEWAY_TIMEOUT_SECONDS` can all be set there instead of as environment variables, with a "Test connection" button that calls the gateway's own `/v1/whoami` to prove the URL and token actually work. Either way, a Hermes gateway restart is required for a `GATEWAY_ALLOW_WRITES` change to take effect, since tool registration happens once at startup.
@@ -90,6 +89,8 @@ Set its environment variables (or the dashboard fields) and restart the Hermes g
 | `GATEWAY_TOKEN` | yes | Must match the gateway's own `GATEWAY_TOKEN` |
 | `GATEWAY_ALLOW_WRITES` | no, default `false` | Registers the mutating tools (restart/up/down/pull). Read-only tools register regardless. This is a client-side intent switch only - the gateway's own `ALLOWED_PROJECTS` and `SELF_EXCLUDE_PROJECTS` are enforced either way |
 | `GATEWAY_TIMEOUT_SECONDS` | no, default `30` | HTTP timeout for calls to the gateway |
+
+**Maintaining the mirror:** the workflow needs a `HERMES_UCG_TOKEN` repo secret here (a token with contents:write on `shanelord01/hermes-ucg` only) to push the mirrored commit. Set once under this repo's Settings -> Secrets and variables -> Actions; nothing else to maintain - every push to `hermes-plugin/**` on `main` re-mirrors automatically.
 
 | Tool | Gated by GATEWAY_ALLOW_WRITES? | What it does |
 |---|---|---|
