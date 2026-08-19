@@ -81,6 +81,8 @@ hermes plugins update ucg   # later, to pick up a new mirrored commit - "ucg" pe
 
 It also adds a **UCG** tab to the Hermes dashboard - `GATEWAY_URL`, `GATEWAY_TOKEN`, `GATEWAY_ALLOW_WRITES`, and `GATEWAY_TIMEOUT_SECONDS` can all be set there instead of as environment variables, with a "Test connection" button that calls the gateway's own `/v1/whoami` to prove the URL and token actually work. Either way, a Hermes gateway restart is required for a `GATEWAY_ALLOW_WRITES` change to take effect, since tool registration happens once at startup.
 
+**Two separate things can need restarting after a change, not one.** A change to `hermes-plugin/` (a new tool, an updated description) needs `hermes plugins update ucg` + a Hermes gateway restart - that's the plugin code the agent calls. A change to `unraid_compose_gateway/` (this sidecar's own API, e.g. what `ucg_projects`/`ucg_prune_dangling_images` actually do server-side) needs the sidecar container itself redeployed (`docker compose pull && up -d` in its own project directory, or via Unraid's Compose Manager UI) - the gateway restart alone won't pick that up, since it's a different, separately-running container. When in doubt, do both.
+
 Set its environment variables (or the dashboard fields) and restart the Hermes gateway:
 
 | Variable | Required | Purpose |
@@ -95,7 +97,7 @@ Set its environment variables (or the dashboard fields) and restart the Hermes g
 | Tool | Gated by GATEWAY_ALLOW_WRITES? | What it does |
 |---|---|---|
 | `ucg_whoami` | no | The gateway's allowed projects, exclude list, and whether plugin-update checking is enabled |
-| `ucg_projects` | no | List projects the gateway can act on |
+| `ucg_projects` | no | List projects the gateway can act on, including each one's Unraid Compose Manager "Auto Start" state (`autostart: true/false/null` - null means unknown, never treat it as false) |
 | `ucg_status` | no | Per-service status for one project |
 | `ucg_logs` | no | Tail logs for any container by name |
 | `ucg_plugin_updates` | no | Check installed Unraid plugins for available updates |
@@ -103,6 +105,9 @@ Set its environment variables (or the dashboard fields) and restart the Hermes g
 | `ucg_up` | yes | `docker compose up -d` |
 | `ucg_down` | yes | `docker compose down` |
 | `ucg_pull` | yes | Pull the latest images for a project's services |
+| `ucg_prune_dangling_images` | yes | `docker image prune -f` (dangling/untagged only, never `-a`) - host-wide, not scoped to a project, since repeated pull+up cycles orphan old image layers over time |
+
+`autostart` is read from the plain `true`/`false` file Unraid Compose Manager's own "Auto Start" checkbox writes alongside each project's compose file - the gateway already read-only-mounts that directory, so this needed no new configuration. An agent using this should never call `ucg_up` for a project whose `autostart` is `false`: the operator has told Unraid not to bring that stack up automatically, and pulling a newer image is not consent to start it.
 
 This plugin only detects Unraid plugin updates, it does not apply them - applying one means running that plugin's install script as root on the host, a different trust level than anything else this gateway does. If you also run [hermes-unraid](https://github.com/shanelord01/hermes-unraid), its `unraid_install_plugin` tool is what actually applies an update this plugin found: `unraid_install_plugin` installs or updates a plugin from its `.plg` URL, which is exactly what `ucg_plugin_updates` returns for anything with `update_available: true`. The two plugins are complementary - one detects, the other applies, and applying stays a distinct, deliberate step either way.
 
