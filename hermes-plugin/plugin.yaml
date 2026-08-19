@@ -1,14 +1,18 @@
 name: ucg
-version: 0.2.0
+version: 0.3.0
 description: >-
   Tools for talking to a running unraid-compose-gateway sidecar: start, stop,
-  restart, and pull images for specific Docker Compose projects; read
-  container logs; and check for available Unraid plugin updates. The sidecar
-  enforces its own allowlist and a self-exclude list server-side, so this
-  plugin cannot make the agent's own project reachable by asking differently -
-  the boundary lives in the sidecar, not here. Mutating tools (restart, up,
-  down) are only registered when GATEWAY_ALLOW_WRITES is set; read tools and
-  plugin-update detection are always available once the sidecar is reachable.
+  restart, and pull images for specific Docker Compose projects (each with
+  its Unraid Compose Manager "Auto Start" state so an agent can tell whether
+  the operator wants it to actually come back up); read container logs;
+  check for available Unraid plugin updates; and clean up dangling images
+  left behind by repeated pull/up cycles. The sidecar enforces its own
+  allowlist and a self-exclude list server-side, so this plugin cannot make
+  the agent's own project reachable by asking differently - the boundary
+  lives in the sidecar, not here. Mutating tools (restart, up, down, pull,
+  prune) are only registered when GATEWAY_ALLOW_WRITES is set; read tools
+  and plugin-update detection are always available once the sidecar is
+  reachable.
 author: Shane Lord
 provides_tools:
   # Always registered once GATEWAY_URL and GATEWAY_TOKEN are set.
@@ -22,6 +26,7 @@ provides_tools:
   - ucg_up
   - ucg_down
   - ucg_pull
+  - ucg_prune_dangling_images
 requires_env:
   - name: GATEWAY_URL
     description: "Base URL of the unraid-compose-gateway instance, e.g. http://unraid-compose-gateway:8080"
@@ -33,7 +38,7 @@ requires_env:
     note: "Can also be set from the UCG dashboard tab."
 optional_env:
   - name: GATEWAY_ALLOW_WRITES
-    description: "Set to true to register the mutating tools (restart, up, down, pull). Defaults to false - read-only - matching the gateway's own default-safe posture. The gateway's own SELF_EXCLUDE_PROJECTS is enforced regardless of this setting; this only controls whether the agent can attempt writes at all."
+    description: "Set to true to register the mutating tools (restart, up, down, pull, prune_dangling_images). Defaults to false - read-only - matching the gateway's own default-safe posture. The gateway's own SELF_EXCLUDE_PROJECTS is enforced regardless of this setting; this only controls whether the agent can attempt writes at all."
     prompt: "Allow compose control? (true/false)"
     secret: false
     note: "Can also be toggled from the UCG dashboard tab - either way, a Hermes gateway restart is required for the change in registered tools to take effect."

@@ -108,25 +108,25 @@ def test_request_handles_connection_failure():
 
 
 def test_status_requires_project():
-    result = json.loads(gateway_tools.compose_gateway_status({}))
+    result = json.loads(gateway_tools.ucg_status({}))
     assert "project is required" in result["error"]
 
 
 def test_logs_requires_name():
-    result = json.loads(gateway_tools.compose_gateway_logs({}))
+    result = json.loads(gateway_tools.ucg_logs({}))
     assert "name is required" in result["error"]
 
 
 def test_restart_blocked_when_writes_disabled():
     with patch.object(gateway_tools, "_config", return_value=_config(allow_writes=False)):
-        result = json.loads(gateway_tools.compose_gateway_restart({"project": "app"}))
+        result = json.loads(gateway_tools.ucg_restart({"project": "app"}))
     assert "GATEWAY_ALLOW_WRITES" in result["error"]
 
 
 def test_restart_calls_gateway_when_writes_enabled():
     with patch.object(gateway_tools, "_config", return_value=_config(allow_writes=True)):
         with patch("urllib.request.urlopen", return_value=_response({"exit_code": 0})) as urlopen:
-            result = json.loads(gateway_tools.compose_gateway_restart({"project": "app"}))
+            result = json.loads(gateway_tools.ucg_restart({"project": "app"}))
     assert result == {"exit_code": 0}
     called_request = urlopen.call_args.args[0]
     assert called_request.full_url == "http://gateway.local:8080/v1/compose/app/restart"
@@ -139,7 +139,7 @@ def test_pull_still_requires_client_side_write_gate():
     four mutating tools - pull included - since it is a client-side intent
     switch, not a re-implementation of the gateway's per-project policy."""
     with patch.object(gateway_tools, "_config", return_value=_config(allow_writes=False)):
-        result = json.loads(gateway_tools.compose_gateway_pull({"project": "app"}))
+        result = json.loads(gateway_tools.ucg_pull({"project": "app"}))
     assert "GATEWAY_ALLOW_WRITES" in result["error"]
 
 
@@ -148,12 +148,12 @@ def test_whoami_calls_expected_path():
         with patch(
             "urllib.request.urlopen", return_value=_response({"allowed_projects": []})
         ) as urlopen:
-            gateway_tools.compose_gateway_whoami({})
+            gateway_tools.ucg_whoami({})
     assert urlopen.call_args.args[0].full_url == "http://gateway.local:8080/v1/whoami"
 
 
 def test_plugin_updates_passes_force_flag():
     with patch.object(gateway_tools, "_config", return_value=_config()):
         with patch("urllib.request.urlopen", return_value=_response({"plugins": []})) as urlopen:
-            gateway_tools.compose_gateway_plugin_updates({"force": True})
+            gateway_tools.ucg_plugin_updates({"force": True})
     assert "force=true" in urlopen.call_args.args[0].full_url

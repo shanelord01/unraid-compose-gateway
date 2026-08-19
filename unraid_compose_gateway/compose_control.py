@@ -84,6 +84,29 @@ def _find_override_file(project_dir: str) -> str | None:
     return None
 
 
+def _read_autostart(project_dir: str) -> bool | None:
+    """Unraid Compose Manager writes a plain-text `autostart` file
+    (contents exactly `true` or `false`, no other format seen in practice)
+    alongside each project's compose file - this is the same on-disk
+    signal its own "Auto Start" checkbox reads and writes. Returns None
+    (never a guessed default) if the file is missing or its content isn't
+    exactly one of the two expected strings - a caller must not treat
+    "don't know" as "false", those are different things with different
+    consequences for whether to start a stack."""
+    import os
+
+    path = os.path.join(project_dir, "autostart")
+    try:
+        raw = open(path, "r").read().strip().lower()
+    except OSError:
+        return None
+    if raw == "true":
+        return True
+    if raw == "false":
+        return False
+    return None
+
+
 def _resolve(project: str, settings: Settings) -> ResolvedProject:
     import os
 
@@ -119,6 +142,7 @@ def list_projects(settings: Settings) -> list[ComposeProject]:
                 path=project_dir,
                 exists=compose_file is not None,
                 self_excluded=settings.is_self_excluded(name),
+                autostart=_read_autostart(project_dir),
             )
         )
     return projects

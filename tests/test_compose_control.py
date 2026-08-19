@@ -22,6 +22,33 @@ def test_list_projects_reports_existing(settings):
     assert next(p for p in projects if p.name == "app").exists is True
 
 
+def test_list_projects_autostart_true(settings):
+    make_compose_project(_dir(settings), "app")
+    (_dir(settings) / "app" / "autostart").write_text("true")
+    projects = compose_control.list_projects(settings)
+    assert next(p for p in projects if p.name == "app").autostart is True
+
+
+def test_list_projects_autostart_false(settings):
+    make_compose_project(_dir(settings), "app")
+    (_dir(settings) / "app" / "autostart").write_text("false")
+    projects = compose_control.list_projects(settings)
+    assert next(p for p in projects if p.name == "app").autostart is False
+
+
+def test_list_projects_autostart_missing_file_is_none(settings):
+    make_compose_project(_dir(settings), "app")
+    projects = compose_control.list_projects(settings)
+    assert next(p for p in projects if p.name == "app").autostart is None
+
+
+def test_list_projects_autostart_malformed_content_is_none(settings):
+    make_compose_project(_dir(settings), "app")
+    (_dir(settings) / "app" / "autostart").write_text("yes please\n")
+    projects = compose_control.list_projects(settings)
+    assert next(p for p in projects if p.name == "app").autostart is None
+
+
 def test_run_action_rejects_project_not_in_allowlist(settings):
     with pytest.raises(compose_control.ProjectNotAllowed):
         compose_control.run_action("not-allowed", "restart", settings)

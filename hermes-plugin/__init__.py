@@ -24,6 +24,7 @@ _WRITE_TOOLS = (
     ("ucg_up", schemas.UP, tools.ucg_up),
     ("ucg_down", schemas.DOWN, tools.ucg_down),
     ("ucg_pull", schemas.PULL, tools.ucg_pull),
+    ("ucg_prune_dangling_images", schemas.PRUNE_IMAGES, tools.ucg_prune_dangling_images),
 )
 
 

@@ -20,6 +20,14 @@ class ComposeProject(BaseModel):
     path: str
     exists: bool
     self_excluded: bool
+    autostart: bool | None = None
+    """Unraid Compose Manager's own "Auto Start" checkbox for this project,
+    read from the plain true/false `autostart` file the plugin writes
+    alongside each project's compose file. None if the project doesn't
+    exist, or the file is missing/unreadable - never guess a value in that
+    case, since guessing wrong either direction is worse than admitting we
+    don't know: a caller must treat None as "don't assume, ask/skip", not
+    as false."""
 
 
 class ComposeService(BaseModel):
@@ -44,6 +52,16 @@ class ContainerLogs(BaseModel):
     container: str
     tail: int
     lines: list[str]
+
+
+class PruneResult(BaseModel):
+    output: str
+    deleted_count: int
+    reclaimed_display: str | None = None
+    """Docker's own human-readable size string (e.g. "7.566GB"), not a
+    byte count - `docker image prune`'s output doesn't give one, and
+    parsing a display string into exact bytes isn't worth the fragility
+    for a number that's purely informational."""
 
 
 class PluginUpdate(BaseModel):

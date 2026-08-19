@@ -125,8 +125,9 @@ def ucg_whoami(args: dict, **kwargs) -> str:
 
 def ucg_projects(args: dict, **kwargs) -> str:
     """List every project the gateway is configured to act on, whether it
-    has a compose file on disk, and whether it is self-excluded from
-    mutating calls."""
+    has a compose file on disk, whether it is self-excluded from mutating
+    calls, and its Unraid Compose Manager 'Auto Start' state (autostart:
+    true/false/null - null means unknown, never treat it as false)."""
     return json.dumps(_request("GET", "/v1/compose/projects"))
 
 
@@ -193,3 +194,18 @@ def ucg_pull(args: dict, **kwargs) -> str:
     recreate a running container. Follow with ucg_up to actually
     run the pulled image, which is where self-exclusion applies."""
     return _run_action("pull", args)
+
+
+def ucg_prune_dangling_images(args: dict, **kwargs) -> str:
+    """Remove dangling (untagged, unreferenced) Docker images host-wide -
+    `docker image prune -f`, never -a. This is what accumulates from
+    repeated pull+up cycles recreating containers on new image digests,
+    orphaning the old layers. Not project-scoped (no ALLOWED_PROJECTS
+    check applies - there's no project here, it's a host-wide cleanup) and
+    never removes anything backing a running or stopped-but-referenced
+    container, only truly unreferenced images. Safe to run any time; a
+    reasonable place is right after a batch of ucg_pull/ucg_up calls."""
+    gate_error = _require_writes()
+    if gate_error:
+        return json.dumps(gate_error)
+    return json.dumps(_request("POST", "/v1/docker/prune-images"))

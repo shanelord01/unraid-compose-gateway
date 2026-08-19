@@ -8,7 +8,7 @@ from __future__ import annotations
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.responses import JSONResponse
 
-from unraid_compose_gateway import compose_control, logs, plugins
+from unraid_compose_gateway import compose_control, docker_ops, logs, plugins
 from unraid_compose_gateway.auth import require_token
 from unraid_compose_gateway.config import Settings
 from unraid_compose_gateway.models import (
@@ -17,6 +17,7 @@ from unraid_compose_gateway.models import (
     ComposeProjectStatus,
     ContainerLogs,
     PluginUpdatesResponse,
+    PruneResult,
     WhoAmI,
 )
 from unraid_compose_gateway.state import get_settings
@@ -124,6 +125,22 @@ def compose_down(project: str, settings: Settings = Depends(get_settings)) -> Co
 )
 def compose_pull(project: str, settings: Settings = Depends(get_settings)) -> ComposeActionResult:
     return _run_action_route(project, "pull", settings)
+
+
+@app.post(
+    "/v1/docker/prune-images",
+    response_model=PruneResult,
+    tags=["docker"],
+    dependencies=[Depends(require_token)],
+)
+def docker_prune_images(settings: Settings = Depends(get_settings)) -> PruneResult:
+    """Dangling (untagged) images only - see docker_ops.py for why this is
+    safe to expose without a project allowlist check: it isn't scoped to
+    any project, it only ever removes images nothing references."""
+    try:
+        return docker_ops.prune_dangling_images(settings)
+    except docker_ops.PruneCommandFailed as exc:
+        raise HTTPException(status_code=502, detail=f"{exc}: {exc.output}"[:2000]) from exc
 
 
 @app.get(
