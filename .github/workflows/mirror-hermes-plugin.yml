@@ -26,7 +26,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: shanelord01/hermes-ucg
-          token: ${{ secrets.HERMES_UCG_TOKEN }}
+          # Write deploy key registered on hermes-ucg; scoped to that one
+          # repo, unlike a personal access token.
+          ssh-key: ${{ secrets.HERMES_UCG_DEPLOY_KEY }}
           path: hermes-ucg
           fetch-depth: 1
 
