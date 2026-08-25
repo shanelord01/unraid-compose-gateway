@@ -218,7 +218,7 @@ def _run_compose(resolved: ResolvedProject, args: list[str], settings: Settings)
     # `name: hermes`. Forcing -p to the directory/allowlist name here would
     # create a second, mismatched project namespace instead of managing the
     # containers that are actually running.
-    command = ["docker", "compose", "-f", resolved.compose_file]
+    command = [*compose_version.compose_command(), "-f", resolved.compose_file]
     if resolved.override_file:
         # Passing an explicit -f suppresses Compose's own automatic
         # docker-compose.override.yml merge, so it is added back by hand -

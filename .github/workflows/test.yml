@@ -58,6 +58,15 @@ jobs:
           echo "--- image ---";      cat /tmp/image.hashes
           test -s /tmp/host.hashes
           diff /tmp/host.hashes /tmp/image.hashes
+      - name: Runtime sync can fetch and verify a different Compose release
+        # Exercises the real download path compose_sync uses at runtime:
+        # inside the built image, fetch a version other than the pinned one
+        # from the docker/compose release, verify its sha256, and confirm the
+        # binary reports that version.
+        run: |
+          got=$(docker run --rm ucg-test python -m unraid_compose_gateway.compose_sync 2.39.4 /tmp/sync)
+          echo "synced binary reports: $got"
+          test "$got" = "2.39.4"
       - name: Show that a current upstream Compose hashes differently (informational)
         continue-on-error: true
         run: |

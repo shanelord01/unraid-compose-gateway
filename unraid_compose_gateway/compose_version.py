@@ -10,17 +10,22 @@ from either side force-recreates every service the other side last touched.
 On a busy boot that turns into orphaned containers and name conflicts.
 
 The image pins its Compose version to match the host (see the Dockerfile),
-and this module is the runtime check that the pin is still right: it reads
-the `com.docker.compose.version` label off a project's existing containers
-and compares it with the version this gateway would run. `up` is refused on
-a mismatch unless the caller explicitly forces it.
+compose_sync.py can replace it at runtime with the exact version the host
+reports, and this module is the runtime check that whichever is active
+matches what created a project's containers. `up` is refused on a mismatch
+unless the caller explicitly forces it.
+
+This module also owns *which* compose command the gateway runs: the bundled
+`docker compose` plugin by default, or a downloaded standalone binary after
+a sync. Every subprocess that runs Compose gets its argv prefix from
+compose_command().
 """
 
 from __future__ import annotations
 
 import logging
 import subprocess
-from functools import lru_cache
+import threading
 
 from unraid_compose_gateway.config import Settings
 
@@ -28,6 +33,12 @@ _LOG = logging.getLogger("unraid_compose_gateway")
 
 VERSION_LABEL = "com.docker.compose.version"
 PROJECT_LABEL = "com.docker.compose.project"
+
+_BUNDLED_COMMAND = ["docker", "compose"]
+_lock = threading.Lock()
+_command: list[str] = list(_BUNDLED_COMMAND)
+_source = "bundled"
+_version_cache: dict[tuple[str, ...], str] = {}
 
 
 class ComposeVersionMismatch(Exception):
@@ -53,11 +64,50 @@ def _run(command: list[str], timeout: int) -> str:
     return completed.stdout
 
 
-@lru_cache(maxsize=1)
+def compose_command() -> list[str]:
+    """argv prefix for running Compose: `["docker", "compose"]` or the path
+    of a synced standalone binary."""
+    with _lock:
+        return list(_command)
+
+
+def compose_source() -> str:
+    """"bundled" or "synced"."""
+    with _lock:
+        return _source
+
+
+def set_compose_command(command: list[str], *, source: str) -> None:
+    global _command, _source
+    with _lock:
+        _command = list(command)
+        _source = source
+
+
+def reset_compose_command() -> None:
+    """Back to the image's bundled plugin. Used by tests."""
+    global _command, _source
+    with _lock:
+        _command = list(_BUNDLED_COMMAND)
+        _source = "bundled"
+        _version_cache.clear()
+
+
+def version_of(command: list[str]) -> str:
+    """`<command> version --short`, cached per command since a given binary
+    cannot change version while the process runs."""
+    key = tuple(command)
+    cached = _version_cache.get(key)
+    if cached is not None:
+        return cached
+    version = _run([*command, "version", "--short"], timeout=30).strip()
+    _version_cache[key] = version
+    return version
+
+
 def gateway_compose_version() -> str:
-    """The Compose version `docker compose` resolves to inside this image.
-    Cached: it cannot change while the process runs."""
-    return _run(["docker", "compose", "version", "--short"], timeout=30).strip()
+    """The Compose version the gateway currently runs `up` with."""
+    return version_of(compose_command())
 
 
 def versions_for_containers(container_ids: list[str], settings: Settings) -> list[str]:
@@ -120,7 +170,7 @@ def log_startup_report(settings: Settings) -> None:
     except Exception as exc:  # noqa: BLE001
         _LOG.warning("could not determine this gateway's docker compose version: %s", exc)
         return
-    _LOG.info("docker compose version in this image: %s", mine)
+    _LOG.info("docker compose version in use: %s (%s)", mine, compose_source())
     try:
         by_project = host_versions_by_project(settings)
     except Exception as exc:  # noqa: BLE001
@@ -132,6 +182,7 @@ def log_startup_report(settings: Settings) -> None:
             _LOG.warning(
                 "compose version mismatch: project '%s' has containers created by Compose %s, "
                 "this gateway runs %s; `up` on it is refused until the versions match "
-                "(rebuild this image with COMPOSE_VERSION=%s, or update the host tool)",
+                "(the host version file, if configured, will pull the gateway into line; "
+                "otherwise rebuild with COMPOSE_VERSION=%s)",
                 project, ", ".join(others), mine, others[0],
             )

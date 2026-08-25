@@ -8,7 +8,7 @@ from __future__ import annotations
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.responses import JSONResponse
 
-from unraid_compose_gateway import compose_control, compose_version, docker_ops, logs, plugins
+from unraid_compose_gateway import compose_control, compose_sync, compose_version, docker_ops, logs, plugins
 from unraid_compose_gateway.auth import require_token
 from unraid_compose_gateway.config import Settings
 from unraid_compose_gateway.models import (
@@ -40,7 +40,12 @@ def _report_compose_version() -> None:
         settings = get_settings()
     except Exception:  # noqa: BLE001
         return
+    # Align with the host's Compose version first (synchronously, so the
+    # report below describes what will actually run), then keep checking
+    # in the background.
+    compose_sync.sync_once(settings)
     compose_version.log_startup_report(settings)
+    compose_sync.start_background_sync(settings)
 
 
 @app.get("/healthz", tags=["meta"])
@@ -54,11 +59,18 @@ def whoami(settings: Settings = Depends(get_settings)) -> WhoAmI:
         version = compose_version.gateway_compose_version()
     except Exception:  # noqa: BLE001
         version = None
+    host_version = (
+        compose_sync.read_host_version(settings.host_compose_version_file)
+        if settings.host_compose_version_file
+        else None
+    )
     return WhoAmI(
         allowed_projects=settings.allowed_projects,
         self_exclude_projects=settings.self_exclude_projects,
         plugin_updates_enabled=settings.plugin_dir is not None,
         compose_version=version,
+        compose_version_source=compose_version.compose_source(),
+        host_compose_version=host_version,
     )
 
 

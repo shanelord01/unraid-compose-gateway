@@ -14,13 +14,13 @@ def _no_real_docker_for_version_checks():
     is stubbed to fail unless a test patches it itself (an inner patch wins),
     and the cached gateway version is cleared around every test so nothing
     leaks between them."""
-    compose_version.gateway_compose_version.cache_clear()
+    compose_version.reset_compose_command()
     with patch(
         "unraid_compose_gateway.compose_version._run",
         side_effect=RuntimeError("docker is not available in unit tests"),
-    ):
+    ), patch("unraid_compose_gateway.compose_sync.start_background_sync", return_value=None):
         yield
-    compose_version.gateway_compose_version.cache_clear()
+    compose_version.reset_compose_command()
 
 
 @pytest.fixture

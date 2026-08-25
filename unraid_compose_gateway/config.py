@@ -29,6 +29,11 @@ class Settings:
     log_tail_max: int = 5000
     compose_timeout_seconds: int = 120
     port: int = 8080
+    host_compose_version_file: str = ""
+    """Path (inside the container) of a file the host writes with its own
+    `docker-compose version --short`. Empty disables version sync."""
+    compose_sync_dir: str = "/var/lib/unraid-compose-gateway/compose"
+    compose_sync_interval_seconds: int = 300
 
     def is_allowed(self, project: str) -> bool:
         return project in self.allowed_projects
@@ -64,4 +69,8 @@ def load_settings() -> Settings:
         log_tail_max=int(os.environ.get("LOG_TAIL_MAX", "5000")),
         compose_timeout_seconds=int(os.environ.get("COMPOSE_TIMEOUT_SECONDS", "120")),
         port=int(os.environ.get("PORT", "8080")),
+        host_compose_version_file=os.environ.get("HOST_COMPOSE_VERSION_FILE", "").strip(),
+        compose_sync_dir=os.environ.get("COMPOSE_SYNC_DIR", "/var/lib/unraid-compose-gateway/compose").strip()
+        or "/var/lib/unraid-compose-gateway/compose",
+        compose_sync_interval_seconds=int(os.environ.get("COMPOSE_SYNC_INTERVAL_SECONDS", "300")),
     )

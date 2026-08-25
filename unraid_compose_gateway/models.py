@@ -17,6 +17,13 @@ class WhoAmI(BaseModel):
     """The Docker Compose version this gateway runs `up` with. Must match
     the host's own Compose tool for shared projects; None only if it could
     not be determined."""
+    compose_version_source: str = "bundled"
+    """"bundled" (the image's pinned plugin) or "synced" (a release binary
+    downloaded at runtime to match host_compose_version)."""
+    host_compose_version: str | None = None
+    """What the host's own Compose tool reports, read from
+    HOST_COMPOSE_VERSION_FILE. None if sync is not configured or the file
+    is missing or malformed."""
 
 
 class ComposeProject(BaseModel):

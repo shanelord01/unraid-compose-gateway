@@ -132,7 +132,7 @@ def test_startup_report_warns_per_mismatched_project(settings, caplog):
         with caplog.at_level("INFO", logger="unraid_compose_gateway"):
             compose_version.log_startup_report(settings)
     messages = [r.getMessage() for r in caplog.records]
-    assert any("docker compose version in this image: 2.40.3" in m for m in messages)
+    assert any("docker compose version in use: 2.40.3 (bundled)" in m for m in messages)
     assert any("project 'observability'" in m and "5.5.0" in m for m in messages)
     assert not any("project 'mealie'" in m for m in messages)
 

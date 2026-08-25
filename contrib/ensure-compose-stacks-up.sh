@@ -23,9 +23,31 @@
 
 ENV_FILE="/boot/config/plugins/compose.manager/projects/unraid-compose-gateway/.env"
 GATEWAY="http://127.0.0.1:8091"
+GATEWAY_CONTAINER="unraid-compose-gateway"
 SETTLE_SECONDS=150
+# Where the gateway reads the host's Compose version from (its
+# HOST_COMPOSE_VERSION_FILE, under the PLUGIN_DIR mount of /boot/config/plugins).
+HOST_VERSION_FILE="/boot/config/plugins/unraid-compose-gateway/host-compose-version"
+HOST_COMPOSE_BIN="/usr/local/bin/docker-compose"
 
 log() { logger "ensure-compose-stacks-up: $*"; }
+
+# Publish the host's Compose version first, before any waiting, so the
+# gateway (which starts in parallel with this script) can align itself as
+# early as possible. Compose Manager updates replace the binary, so this
+# is what carries a new version across.
+if [ -x "$HOST_COMPOSE_BIN" ]; then
+    host_version=$("$HOST_COMPOSE_BIN" version --short 2>/dev/null | tr -d '[:space:]')
+    if echo "$host_version" | grep -Eq '^v?[0-9]+\.[0-9]+\.[0-9]+$'; then
+        mkdir -p "$(dirname "$HOST_VERSION_FILE")"
+        printf '%s\n' "${host_version#v}" > "$HOST_VERSION_FILE"
+        log "host docker-compose version ${host_version#v} written to $HOST_VERSION_FILE"
+    else
+        log "could not read a version from $HOST_COMPOSE_BIN (got '${host_version}'), not updating $HOST_VERSION_FILE"
+    fi
+else
+    log "$HOST_COMPOSE_BIN not found, not updating $HOST_VERSION_FILE"
+fi
 
 log "waiting ${SETTLE_SECONDS}s for boot to settle"
 sleep "$SETTLE_SECONDS"
@@ -50,6 +72,34 @@ until curl -s -f -m 10 "${AUTH[@]}" "$GATEWAY/healthz" >/dev/null 2>&1; do
     fi
     sleep 5
 done
+
+# If the gateway is still on a different Compose version than the host,
+# give it one restart so it re-syncs now rather than at its next interval.
+# The gateway only ever switches to a verified download of the exact host
+# version, so this cannot make things worse; and its 409 guard still
+# refuses a mismatched `up` if the sync did not succeed.
+whoami=$(curl -s -m 30 "${AUTH[@]}" "$GATEWAY/v1/whoami")
+gw_version=$(echo "$whoami" | jq -r '.compose_version // empty' 2>/dev/null)
+host_file_version=$(cat "$HOST_VERSION_FILE" 2>/dev/null | tr -d '[:space:]')
+if [ -n "$gw_version" ] && [ -n "$host_file_version" ] && [ "$gw_version" != "$host_file_version" ]; then
+    log "gateway runs Compose ${gw_version}, host has ${host_file_version}; restarting ${GATEWAY_CONTAINER} to re-sync"
+    timeout 120 docker restart "$GATEWAY_CONTAINER" >/dev/null 2>&1
+    tries=0
+    until curl -s -f -m 10 "${AUTH[@]}" "$GATEWAY/healthz" >/dev/null 2>&1; do
+        tries=$((tries + 1))
+        if [ "$tries" -ge 12 ]; then
+            log "gateway did not come back after restart, aborting"
+            exit 1
+        fi
+        sleep 5
+    done
+    gw_version=$(curl -s -m 30 "${AUTH[@]}" "$GATEWAY/v1/whoami" | jq -r '.compose_version // empty' 2>/dev/null)
+    if [ "$gw_version" = "$host_file_version" ]; then
+        log "gateway now runs Compose ${gw_version}, matching the host"
+    else
+        log "gateway still runs Compose ${gw_version:-unknown} (host ${host_file_version}); its up calls will be refused until this resolves"
+    fi
+fi
 
 projects=$(curl -s -m 30 "${AUTH[@]}" "$GATEWAY/v1/compose/projects")
 if ! echo "$projects" | jq -e 'type == "array"' >/dev/null 2>&1; then
