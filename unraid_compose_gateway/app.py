@@ -8,7 +8,7 @@ from __future__ import annotations
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.responses import JSONResponse
 
-from unraid_compose_gateway import compose_control, docker_ops, logs, plugins
+from unraid_compose_gateway import compose_control, compose_version, docker_ops, logs, plugins
 from unraid_compose_gateway.auth import require_token
 from unraid_compose_gateway.config import Settings
 from unraid_compose_gateway.models import (
@@ -32,6 +32,17 @@ app = FastAPI(
 )
 
 
+@app.on_event("startup")
+def _report_compose_version() -> None:
+    # Informational only. Settings may be absent under test, and the docker
+    # daemon may be unreachable at boot; neither should stop the service.
+    try:
+        settings = get_settings()
+    except Exception:  # noqa: BLE001
+        return
+    compose_version.log_startup_report(settings)
+
+
 @app.get("/healthz", tags=["meta"])
 def healthz() -> dict:
     return {"status": "ok"}
@@ -39,10 +50,15 @@ def healthz() -> dict:
 
 @app.get("/v1/whoami", response_model=WhoAmI, tags=["meta"], dependencies=[Depends(require_token)])
 def whoami(settings: Settings = Depends(get_settings)) -> WhoAmI:
+    try:
+        version = compose_version.gateway_compose_version()
+    except Exception:  # noqa: BLE001
+        version = None
     return WhoAmI(
         allowed_projects=settings.allowed_projects,
         self_exclude_projects=settings.self_exclude_projects,
         plugin_updates_enabled=settings.plugin_dir is not None,
+        compose_version=version,
     )
 
 
@@ -74,9 +90,11 @@ def compose_status(project: str, settings: Settings = Depends(get_settings)) -> 
     return ComposeProjectStatus(project=project, services=services)
 
 
-def _run_action_route(project: str, action: str, settings: Settings) -> ComposeActionResult:
+def _run_action_route(project: str, action: str, settings: Settings, *, force: bool = False) -> ComposeActionResult:
     try:
-        return compose_control.run_action(project, action, settings)
+        return compose_control.run_action(project, action, settings, force=force)
+    except compose_version.ComposeVersionMismatch as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except compose_control.ProjectNotAllowed as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
     except compose_control.ProjectSelfExcluded as exc:
@@ -103,8 +121,19 @@ def compose_restart(project: str, settings: Settings = Depends(get_settings)) ->
     tags=["compose"],
     dependencies=[Depends(require_token)],
 )
-def compose_up(project: str, settings: Settings = Depends(get_settings)) -> ComposeActionResult:
-    return _run_action_route(project, "up", settings)
+def compose_up(
+    project: str,
+    force: bool = Query(
+        default=False,
+        description=(
+            "Run `up` even if the project's containers were created by a different "
+            "Compose version than this gateway runs. Without it that case is refused "
+            "with 409, because `up` would recreate every service."
+        ),
+    ),
+    settings: Settings = Depends(get_settings),
+) -> ComposeActionResult:
+    return _run_action_route(project, "up", settings, force=force)
 
 
 @app.post(

@@ -160,14 +160,14 @@ def ucg_plugin_updates(args: dict, **kwargs) -> str:
 
 # --- mutating tools, gated on GATEWAY_ALLOW_WRITES --------------------------
 
-def _run_action(action: str, args: dict) -> str:
+def _run_action(action: str, args: dict, params: dict | None = None) -> str:
     gate_error = _require_writes()
     if gate_error:
         return json.dumps(gate_error)
     project = _require_project(args)
     if not project:
         return json.dumps({"error": "project is required"})
-    return json.dumps(_request("POST", f"/v1/compose/{urllib.parse.quote(project)}/{action}"))
+    return json.dumps(_request("POST", f"/v1/compose/{urllib.parse.quote(project)}/{action}", params))
 
 
 def ucg_restart(args: dict, **kwargs) -> str:
@@ -178,8 +178,13 @@ def ucg_restart(args: dict, **kwargs) -> str:
 
 def ucg_up(args: dict, **kwargs) -> str:
     """Bring a compose project up (`docker compose up -d`). Refused by the
-    gateway itself if the project is in its SELF_EXCLUDE_PROJECTS list."""
-    return _run_action("up", args)
+    gateway itself if the project is in its SELF_EXCLUDE_PROJECTS list, and
+    answered with HTTP 409 if the project's containers were created by a
+    different Compose version than the gateway runs (an `up` would then
+    recreate every service). Pass force=true only when that recreate is
+    intended."""
+    force = bool((args or {}).get("force"))
+    return _run_action("up", args, {"force": "true" if force else None})
 
 
 def ucg_down(args: dict, **kwargs) -> str:

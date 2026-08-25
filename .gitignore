@@ -2,5 +2,6 @@ __pycache__/
 *.pyc
 .venv/
 .env
+!tests/fixtures/hash-parity/.env
 *.egg-info/
 .pytest_cache/

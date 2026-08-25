@@ -14,3 +14,56 @@ jobs:
           python-version: "3.12"
       - run: pip install -r requirements-dev.txt
       - run: pytest -q
+
+  # Builds the image and proves two things about its Compose binary:
+  #   1. it is exactly the COMPOSE_VERSION pinned in the Dockerfile, and
+  #   2. it produces the same per-service config hashes as the standalone
+  #      docker-compose release of that version (what Unraid's Compose
+  #      Manager runs on the host).
+  # If either fails, deploying the image would make every `up` recreate
+  # projects the host tool also manages.
+  compose-version-parity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read pinned version from the Dockerfile
+        id: pin
+        run: |
+          v=$(sed -n 's/^ARG COMPOSE_VERSION=//p' Dockerfile | head -1)
+          test -n "$v"
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+      - name: Build image
+        run: docker build -t ucg-test .
+      - name: Image runs the pinned Compose version
+        run: |
+          got=$(docker run --rm ucg-test docker compose version --short)
+          echo "image: $got  pinned: ${{ steps.pin.outputs.version }}"
+          test "$got" = "${{ steps.pin.outputs.version }}"
+      - name: Fetch the standalone binary of the same version (host-side tool)
+        run: |
+          curl -fsSL -o /tmp/docker-compose \
+            "https://github.com/docker/compose/releases/download/v${{ steps.pin.outputs.version }}/docker-compose-linux-x86_64"
+          chmod +x /tmp/docker-compose
+          /tmp/docker-compose version
+      - name: Config hashes match between image and standalone binary
+        run: |
+          fx="$GITHUB_WORKSPACE/tests/fixtures/hash-parity"
+          mkdir -p /tmp/hashparity/metrics /tmp/hashparity/dashboards
+          touch /tmp/hashparity/prometheus.yml
+          docker network create shared >/dev/null 2>&1 || true
+          ( cd "$fx" && /tmp/docker-compose -f docker-compose.yml -f docker-compose.override.yml config --hash='*' ) | sort > /tmp/host.hashes
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$fx:$fx:ro" -v /tmp/hashparity:/tmp/hashparity -w "$fx" ucg-test \
+            docker compose -f docker-compose.yml -f docker-compose.override.yml config --hash='*' | sort > /tmp/image.hashes
+          echo "--- standalone ---"; cat /tmp/host.hashes
+          echo "--- image ---";      cat /tmp/image.hashes
+          test -s /tmp/host.hashes
+          diff /tmp/host.hashes /tmp/image.hashes
+      - name: Show that a current upstream Compose hashes differently (informational)
+        continue-on-error: true
+        run: |
+          fx="$GITHUB_WORKSPACE/tests/fixtures/hash-parity"
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$fx:$fx:ro" -v /tmp/hashparity:/tmp/hashparity -w "$fx" docker:cli \
+            docker compose version
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$fx:$fx:ro" -v /tmp/hashparity:/tmp/hashparity -w "$fx" docker:cli \
+            docker compose -f docker-compose.yml -f docker-compose.override.yml config --hash='*' | sort > /tmp/upstream.hashes
+          diff /tmp/host.hashes /tmp/upstream.hashes && echo "same hashes as upstream" || echo "upstream Compose hashes differently, as expected"

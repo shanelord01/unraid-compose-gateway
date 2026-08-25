@@ -1,0 +1,60 @@
+name: hashparity
+
+networks:
+  monitoring:
+    driver: bridge
+  shared:
+    external: true
+
+services:
+  metrics:
+    image: prom/prometheus:v2.53.0
+    container_name: hp-metrics
+    restart: unless-stopped
+    cpuset: "${CPUSET}"
+    mem_limit: ${MEM_LIMIT_METRICS}
+    networks:
+      - monitoring
+    ports:
+      - "9090:9090"
+    volumes:
+      - ${METRICS_DATA}:/prometheus
+      - ${METRICS_CONFIG}:/etc/prometheus/prometheus.yml:ro
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=30d"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  dashboards:
+    image: grafana/grafana:11.1.0
+    container_name: hp-dashboards
+    restart: unless-stopped
+    depends_on:
+      - metrics
+    cpuset: "${CPUSET}"
+    mem_limit: ${MEM_LIMIT_DASHBOARDS}
+    networks:
+      - monitoring
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      GF_SERVER_ROOT_URL: ${ROOT_URL}
+      GF_SECURITY_ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+    volumes:
+      - ${DASHBOARDS_DATA}:/var/lib/grafana
+    labels:
+      - "com.example.autonet=true"
+      - "com.example.autonet.alias=dashboards"
+
+  relay:
+    image: alpine/socat:1.8.0.0
+    container_name: hp-relay
+    restart: unless-stopped
+    network_mode: host
+    command: TCP-LISTEN:5433,fork,reuseaddr TCP:127.0.0.1:5432

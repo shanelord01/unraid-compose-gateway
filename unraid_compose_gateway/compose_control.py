@@ -16,6 +16,7 @@ import json
 import subprocess
 from dataclasses import dataclass
 
+from unraid_compose_gateway import compose_version
 from unraid_compose_gateway.config import Settings
 from unraid_compose_gateway.models import ComposeActionResult, ComposeProject, ComposeService
 
@@ -169,12 +170,24 @@ _ACTION_ARGS = {
 _SELF_EXCLUDE_EXEMPT_ACTIONS = {"pull"}
 
 
-def run_action(project: str, action: str, settings: Settings) -> ComposeActionResult:
+# `up` is the only action that compares config hashes and recreates on a
+# difference, so it is the only one guarded by the Compose version check.
+# `restart`, `down` and `pull` act on containers as they are.
+_VERSION_GUARDED_ACTIONS = {"up"}
+
+
+def run_action(project: str, action: str, settings: Settings, *, force: bool = False) -> ComposeActionResult:
     if action not in _ACTION_ARGS:
         raise ValueError(f"unsupported action: {action}")
     mutating = action not in _SELF_EXCLUDE_EXEMPT_ACTIONS
     _check_target(project, settings, mutating=mutating)
     resolved = _resolve(project, settings)
+    if action in _VERSION_GUARDED_ACTIONS and not force:
+        # Ask Compose itself which containers belong to this project (it
+        # derives the project name from the file, the same way `up` will),
+        # then compare the Compose version stamped on them with ours.
+        ids = _run_compose(resolved, ["ps", "-a", "-q"], settings).output.split()
+        compose_version.assert_parity(project, ids, settings)
     result = _run_compose(resolved, _ACTION_ARGS[action], settings)
     return ComposeActionResult(
         project=project, action=action, exit_code=result.exit_code, output=result.output

@@ -1,0 +1,16 @@
+services:
+  metrics:
+    labels:
+      net.unraid.docker.managed: 'composeman'
+      net.unraid.docker.icon: '/mnt/user/appdata/Icons/metrics.png'
+      net.unraid.docker.webui: 'http://[IP]:[PORT:9090]/'
+      net.unraid.docker.shell: 'sh'
+  dashboards:
+    labels:
+      net.unraid.docker.managed: 'composeman'
+      net.unraid.docker.icon: '/mnt/user/appdata/Icons/dashboards.png'
+      net.unraid.docker.webui: 'http://[IP]:[PORT:3000]/'
+      net.unraid.docker.shell: 'bash'
+  relay:
+    labels:
+      net.unraid.docker.managed: 'composeman'

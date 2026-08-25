@@ -13,6 +13,10 @@ class WhoAmI(BaseModel):
     allowed_projects: list[str]
     self_exclude_projects: list[str]
     plugin_updates_enabled: bool
+    compose_version: str | None = None
+    """The Docker Compose version this gateway runs `up` with. Must match
+    the host's own Compose tool for shared projects; None only if it could
+    not be determined."""
 
 
 class ComposeProject(BaseModel):

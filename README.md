@@ -50,7 +50,7 @@ Interactive OpenAPI docs are served at `/docs` once the container is running. Su
 | GET | `/v1/compose/projects` | List allowed projects, whether each has a compose file on disk, and its exclusion state | no |
 | GET | `/v1/compose/{project}/status` | Per-service state for one project | no |
 | POST | `/v1/compose/{project}/restart` | `docker compose restart` | **yes** |
-| POST | `/v1/compose/{project}/up` | `docker compose up -d` | **yes** |
+| POST | `/v1/compose/{project}/up` | `docker compose up -d`. 409 if the project's containers were created by a different Compose version; `?force=true` overrides | **yes** |
 | POST | `/v1/compose/{project}/down` | `docker compose down` | **yes** |
 | POST | `/v1/compose/{project}/pull` | `docker compose pull` | no - see below |
 | GET | `/v1/containers/{name}/logs` | Tail logs for any container (`?tail=`, `?since=`) | no |
@@ -131,6 +131,7 @@ This endpoint only detects updates. Applying one means running that plugin's ins
 ## Requirements
 
 - Docker with the Compose plugin (v2) on the host
+- The Compose version inside this image must match the Compose version the host's own tooling uses for the same projects. Compose stamps a config hash on each container and recreates any service whose hash differs on the next `up`, and different Compose versions hash identical YAML differently. Two tools with different versions managing one project therefore recreate each other's containers on every `up`. The image pins its version with the `COMPOSE_VERSION` build argument (default matches Unraid Compose Manager's bundled `docker-compose`; check with `docker-compose version` on the host). At startup the gateway logs its own version and warns about any project whose containers carry a different one, `GET /v1/whoami` reports it as `compose_version`, and `POST /v1/compose/{project}/up` answers 409 instead of recreating a mismatched project unless called with `?force=true`. CI builds the image and checks its hashes against the standalone binary of the pinned version.
 - Access to `/var/run/docker.sock`
 - Python 3.12+ if running outside the provided container image
 

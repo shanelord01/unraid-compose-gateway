@@ -113,7 +113,17 @@ UP = {
     + _MUTATING_NOTE,
     "parameters": {
         "type": "object",
-        "properties": {"project": _PROJECT},
+        "properties": {
+            "project": _PROJECT,
+            "force": {
+                "type": "boolean",
+                "description": (
+                    "Run up even when the gateway reports a Compose version mismatch "
+                    "(HTTP 409). That recreates every service in the project. Leave "
+                    "unset unless the operator has asked for exactly that."
+                ),
+            },
+        },
         "required": ["project"],
     },
 }
