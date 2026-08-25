@@ -131,7 +131,7 @@ def test_run_action_includes_override_file_when_present(settings):
     (project_dir / "docker-compose.override.yml").write_text("services: {}\n")
     with patch("unraid_compose_gateway.compose_control.subprocess.run") as run:
         run.return_value = MagicMock(returncode=0, stdout="done\n", stderr="")
-        compose_control.run_action("app", "up", settings)
+        compose_control.run_action("app", "up", settings, force=True)
     called_command = run.call_args.args[0]
     assert called_command.count("-f") == 2
     assert str(project_dir / "docker-compose.override.yml") in called_command
@@ -141,7 +141,7 @@ def test_run_action_omits_override_flag_when_no_override_file(settings):
     make_compose_project(_dir(settings), "app")
     with patch("unraid_compose_gateway.compose_control.subprocess.run") as run:
         run.return_value = MagicMock(returncode=0, stdout="done\n", stderr="")
-        compose_control.run_action("app", "up", settings)
+        compose_control.run_action("app", "up", settings, force=True)
     called_command = run.call_args.args[0]
     assert called_command.count("-f") == 1
 

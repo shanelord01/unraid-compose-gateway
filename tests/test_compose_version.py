@@ -34,13 +34,6 @@ def _fake_run(version: str, inspect_output: str = "", ps_output: str = ""):
     return run
 
 
-@pytest.fixture(autouse=True)
-def _clear_version_cache():
-    compose_version.gateway_compose_version.cache_clear()
-    yield
-    compose_version.gateway_compose_version.cache_clear()
-
-
 def test_versions_for_containers_dedupes_and_sorts(settings):
     with patch("unraid_compose_gateway.compose_version._run") as run:
         run.return_value = "2.40.3\n5.5.0\n2.40.3\n"
@@ -149,3 +142,15 @@ def test_startup_report_never_raises_when_docker_is_unavailable(settings, caplog
         with caplog.at_level("WARNING", logger="unraid_compose_gateway"):
             compose_version.log_startup_report(settings)
     assert any("could not determine" in r.getMessage() for r in caplog.records)
+
+
+def test_up_refuses_when_versions_cannot_be_read(settings):
+    # conftest stubs compose_version._run to fail; the guard must turn that
+    # into a ComposeCommandFailed, not run `up` and not leak a RuntimeError.
+    make_compose_project(Path(settings.compose_projects_dir), "app")
+    with patch("unraid_compose_gateway.compose_control.subprocess.run") as run_compose:
+        run_compose.return_value = _completed("abc123\n")
+        with pytest.raises(compose_control.ComposeCommandFailed) as excinfo:
+            compose_control.run_action("app", "up", settings)
+    assert "verify compose version parity" in str(excinfo.value)
+    assert run_compose.call_count == 1

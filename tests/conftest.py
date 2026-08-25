@@ -1,8 +1,26 @@
 from __future__ import annotations
 
+from unittest.mock import patch
+
 import pytest
 
+from unraid_compose_gateway import compose_version
 from unraid_compose_gateway.config import Settings
+
+
+@pytest.fixture(autouse=True)
+def _no_real_docker_for_version_checks():
+    """Unit tests must never reach a real Docker daemon. compose_version._run
+    is stubbed to fail unless a test patches it itself (an inner patch wins),
+    and the cached gateway version is cleared around every test so nothing
+    leaks between them."""
+    compose_version.gateway_compose_version.cache_clear()
+    with patch(
+        "unraid_compose_gateway.compose_version._run",
+        side_effect=RuntimeError("docker is not available in unit tests"),
+    ):
+        yield
+    compose_version.gateway_compose_version.cache_clear()
 
 
 @pytest.fixture

@@ -187,7 +187,15 @@ def run_action(project: str, action: str, settings: Settings, *, force: bool = F
         # derives the project name from the file, the same way `up` will),
         # then compare the Compose version stamped on them with ours.
         ids = _run_compose(resolved, ["ps", "-a", "-q"], settings).output.split()
-        compose_version.assert_parity(project, ids, settings)
+        try:
+            compose_version.assert_parity(project, ids, settings)
+        except (RuntimeError, subprocess.TimeoutExpired) as exc:
+            # Could not read the versions at all. Refusing is the safe side:
+            # an `up` that turns out to be a full recreate is the failure
+            # this guard exists to prevent.
+            raise ComposeCommandFailed(
+                "could not verify compose version parity before up", exit_code=-1, output=str(exc)
+            ) from exc
     result = _run_compose(resolved, _ACTION_ARGS[action], settings)
     return ComposeActionResult(
         project=project, action=action, exit_code=result.exit_code, output=result.output
