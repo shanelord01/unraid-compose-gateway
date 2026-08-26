@@ -45,11 +45,48 @@ def _timeout() -> int:
         return 30
 
 
+def _long_timeout() -> int:
+    """Timeout for calls that run a `docker compose` command on the gateway.
+
+    Floored at the read timeout so a misconfiguration can only ever make
+    long calls wait longer than short ones, never less.
+    """
+    try:
+        value = int(_config().get("long_timeout_seconds") or 600)
+    except (TypeError, ValueError):
+        value = 600
+    return max(value, _timeout())
+
+
+def _timeout_error(path: str, seconds: int) -> dict:
+    """A timeout here means the CLIENT gave up, not that the work failed.
+
+    The gateway runs the compose command in its own process with its own
+    (COMPOSE_TIMEOUT_SECONDS) limit and keeps going after we disconnect, so
+    the operation is very likely still running and may well succeed. Saying
+    so matters: the obvious reaction to a bare "timed out" is to retry, and
+    a retried `up` stacks a second concurrent compose run over the first.
+    """
+    return {
+        "error": (
+            f"timed out after {seconds}s waiting for unraid-compose-gateway on {path}. "
+            "This is a client-side timeout only - the gateway runs the command in its own "
+            "process and has almost certainly continued past this point, so the operation "
+            "may still be in progress or already complete. Do NOT retry this call blindly: "
+            "a second concurrent `up` on the same project is what strands containers in "
+            "'Created'. Poll ucg_status for the project to find out what actually happened, "
+            "and raise GATEWAY_LONG_TIMEOUT_SECONDS if this recurs."
+        ),
+        "timed_out": True,
+        "timeout_seconds": seconds,
+    }
+
+
 def _writes_allowed() -> bool:
     return bool(_config().get("allow_writes"))
 
 
-def _request(method: str, path: str, params: dict | None = None) -> dict:
+def _request(method: str, path: str, params: dict | None = None, timeout: int | None = None) -> dict:
     """Call the gateway. Returns the decoded JSON body, or {"error": ...}.
 
     The gateway reports problems as FastAPI's standard {"detail": "..."}
@@ -80,11 +117,13 @@ def _request(method: str, path: str, params: dict | None = None) -> dict:
         },
         method=method,
     )
+    effective_timeout = _timeout() if timeout is None else timeout
     try:
-        with urllib.request.urlopen(req, timeout=_timeout()) as resp:
+        with urllib.request.urlopen(req, timeout=effective_timeout) as resp:
             raw = resp.read().decode() or "{}"
             return json.loads(raw)
     except urllib.error.HTTPError as e:
+        # Must stay ahead of URLError - HTTPError subclasses it.
         detail = ""
         try:
             payload = json.loads(e.read().decode() or "{}")
@@ -92,7 +131,14 @@ def _request(method: str, path: str, params: dict | None = None) -> dict:
         except Exception:  # noqa: BLE001
             detail = ""
         return {"error": f"HTTP {e.code} from unraid-compose-gateway: {detail or e.reason}"}
+    except TimeoutError:
+        # socket.timeout is an alias of TimeoutError on 3.10+; this is the
+        # read-timeout path, which is the one long compose calls hit.
+        return _timeout_error(path, effective_timeout)
     except urllib.error.URLError as e:
+        # A connect-phase timeout arrives wrapped rather than bare.
+        if isinstance(e.reason, TimeoutError):
+            return _timeout_error(path, effective_timeout)
         return {"error": f"could not reach unraid-compose-gateway at {base}: {e.reason}"}
     except Exception as e:  # noqa: BLE001 - handlers must never raise
         return {"error": f"{type(e).__name__}: {e}"}
@@ -167,7 +213,14 @@ def _run_action(action: str, args: dict, params: dict | None = None) -> str:
     project = _require_project(args)
     if not project:
         return json.dumps({"error": "project is required"})
-    return json.dumps(_request("POST", f"/v1/compose/{urllib.parse.quote(project)}/{action}", params))
+    return json.dumps(
+        _request(
+            "POST",
+            f"/v1/compose/{urllib.parse.quote(project)}/{action}",
+            params,
+            timeout=_long_timeout(),
+        )
+    )
 
 
 def ucg_restart(args: dict, **kwargs) -> str:
@@ -182,7 +235,13 @@ def ucg_up(args: dict, **kwargs) -> str:
     answered with HTTP 409 if the project's containers were created by a
     different Compose version than the gateway runs (an `up` would then
     recreate every service). Pass force=true only when that recreate is
-    intended."""
+    intended.
+
+    If this returns timed_out, the call did NOT necessarily fail - the
+    gateway keeps running the command after the client gives up. Check
+    ucg_status for the project rather than calling ucg_up again; two
+    concurrent `up` runs on one project is how containers end up stranded
+    in 'Created'."""
     force = bool((args or {}).get("force"))
     return _run_action("up", args, {"force": "true" if force else None})
 
@@ -213,4 +272,4 @@ def ucg_prune_dangling_images(args: dict, **kwargs) -> str:
     gate_error = _require_writes()
     if gate_error:
         return json.dumps(gate_error)
-    return json.dumps(_request("POST", "/v1/docker/prune-images"))
+    return json.dumps(_request("POST", "/v1/docker/prune-images", timeout=_long_timeout()))

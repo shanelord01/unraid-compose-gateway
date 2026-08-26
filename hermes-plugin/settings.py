@@ -17,7 +17,16 @@ FIELDS = {
     "gateway_url": ("GATEWAY_URL", ""),
     "gateway_token": ("GATEWAY_TOKEN", ""),
     "allow_writes": ("GATEWAY_ALLOW_WRITES", False),
+    # Read calls (whoami/projects/status/logs/plugin updates) answer fast.
     "timeout_seconds": ("GATEWAY_TIMEOUT_SECONDS", 30),
+    # Calls that shell out to `docker compose` on the gateway (up/down/
+    # restart/pull) and `docker image prune`. These must NOT share the read
+    # timeout: the gateway's own limit is COMPOSE_TIMEOUT_SECONDS (default
+    # 120), so a 30s client timeout guarantees a false failure on every
+    # compose action taking 30-120s while the gateway goes on to finish it
+    # successfully. Default deliberately sits well above the gateway's, so
+    # the server is always the side that decides an operation has failed.
+    "long_timeout_seconds": ("GATEWAY_LONG_TIMEOUT_SECONDS", 600),
 }
 
 SECRET_FIELDS = ("gateway_token",)

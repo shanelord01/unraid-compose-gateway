@@ -1,5 +1,5 @@
 name: ucg
-version: 0.3.0
+version: 0.4.0
 description: >-
   Tools for talking to a running unraid-compose-gateway sidecar: start, stop,
   restart, and pull images for specific Docker Compose projects (each with
@@ -43,6 +43,10 @@ optional_env:
     secret: false
     note: "Can also be toggled from the UCG dashboard tab - either way, a Hermes gateway restart is required for the change in registered tools to take effect."
   - name: GATEWAY_TIMEOUT_SECONDS
-    description: "HTTP timeout in seconds for calls to the gateway (default 30). Compose actions can legitimately take longer than a typical API call."
+    description: "HTTP timeout in seconds for READ calls to the gateway - whoami, projects, status, logs, plugin updates (default 30). These answer fast; compose actions use GATEWAY_LONG_TIMEOUT_SECONDS instead."
     secret: false
     note: "Can also be set from the UCG dashboard tab."
+  - name: GATEWAY_LONG_TIMEOUT_SECONDS
+    description: "HTTP timeout in seconds for calls that run a command on the gateway - up, down, restart, pull, prune_dangling_images (default 600). Must stay comfortably ABOVE the gateway's own COMPOSE_TIMEOUT_SECONDS (default 120) so the gateway, not this client, is what decides an operation has failed; a shorter value here reports false failures for work the gateway goes on to complete. Floored at GATEWAY_TIMEOUT_SECONDS."
+    secret: false
+    note: "Not shown in the UCG dashboard tab yet - set it via environment. Saving from the dashboard will not clear it."

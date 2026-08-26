@@ -24,6 +24,11 @@ class WhoAmI(BaseModel):
     """What the host's own Compose tool reports, read from
     HOST_COMPOSE_VERSION_FILE. None if sync is not configured or the file
     is missing or malformed."""
+    compose_timeout_seconds: int = 120
+    """How long this gateway lets a single `docker compose` command run
+    before giving up. Published so a client can see whether its own HTTP
+    timeout is shorter than this - if it is, that client will report
+    failures for operations the gateway goes on to complete."""
 
 
 class ComposeProject(BaseModel):
