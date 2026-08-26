@@ -39,6 +39,7 @@ def _config(**overrides):
         "gateway_token": "test-token",
         "allow_writes": False,
         "timeout_seconds": 30,
+        "long_timeout_seconds": 600,
     }
     base.update(overrides)
     return base
@@ -157,3 +158,97 @@ def test_plugin_updates_passes_force_flag():
         with patch("urllib.request.urlopen", return_value=_response({"plugins": []})) as urlopen:
             gateway_tools.ucg_plugin_updates({"force": True})
     assert "force=true" in urlopen.call_args.args[0].full_url
+
+
+# --- timeout handling -------------------------------------------------------
+# Regression cover for the 2026-08-26 incident: a 30s client timeout against a
+# gateway whose own compose limit is 120s reported failures for `up` calls the
+# gateway went on to complete successfully.
+
+
+def test_read_calls_use_the_short_timeout():
+    seen = {}
+
+    def fake_urlopen(req, timeout):
+        seen["timeout"] = timeout
+        return _response({"ok": True})
+
+    with patch.object(gateway_tools, "_config", return_value=_config()):
+        with patch("urllib.request.urlopen", fake_urlopen):
+            gateway_tools.ucg_whoami({})
+    assert seen["timeout"] == 30
+
+
+def test_compose_actions_use_the_long_timeout():
+    seen = {}
+
+    def fake_urlopen(req, timeout):
+        seen["timeout"] = timeout
+        return _response({"ok": True})
+
+    with patch.object(gateway_tools, "_config", return_value=_config(allow_writes=True)):
+        with patch("urllib.request.urlopen", fake_urlopen):
+            gateway_tools.ucg_up({"project": "Observability"})
+    assert seen["timeout"] == 600
+
+
+def test_prune_uses_the_long_timeout():
+    seen = {}
+
+    def fake_urlopen(req, timeout):
+        seen["timeout"] = timeout
+        return _response({"ok": True})
+
+    with patch.object(gateway_tools, "_config", return_value=_config(allow_writes=True)):
+        with patch("urllib.request.urlopen", fake_urlopen):
+            gateway_tools.ucg_prune_dangling_images({})
+    assert seen["timeout"] == 600
+
+
+def test_long_timeout_is_floored_at_the_read_timeout():
+    """A misconfiguration must never make long calls give up sooner than reads."""
+    with patch.object(
+        gateway_tools, "_config", return_value=_config(timeout_seconds=90, long_timeout_seconds=10)
+    ):
+        assert gateway_tools._long_timeout() == 90
+
+
+def test_long_timeout_falls_back_when_unset():
+    cfg = _config()
+    del cfg["long_timeout_seconds"]
+    with patch.object(gateway_tools, "_config", return_value=cfg):
+        assert gateway_tools._long_timeout() == 600
+
+
+def test_timeout_is_reported_as_possibly_still_running_not_as_failure():
+    def fake_urlopen(req, timeout):
+        raise TimeoutError("timed out")
+
+    with patch.object(gateway_tools, "_config", return_value=_config(allow_writes=True)):
+        with patch("urllib.request.urlopen", fake_urlopen):
+            result = json.loads(gateway_tools.ucg_up({"project": "Observability"}))
+    assert result["timed_out"] is True
+    assert result["timeout_seconds"] == 600
+    assert "ucg_status" in result["error"]
+    assert "Do NOT retry" in result["error"]
+
+
+def test_connect_phase_timeout_is_also_treated_as_a_timeout():
+    def fake_urlopen(req, timeout):
+        raise urllib.error.URLError(TimeoutError("timed out"))
+
+    with patch.object(gateway_tools, "_config", return_value=_config(allow_writes=True)):
+        with patch("urllib.request.urlopen", fake_urlopen):
+            result = json.loads(gateway_tools.ucg_up({"project": "Observability"}))
+    assert result["timed_out"] is True
+
+
+def test_non_timeout_url_error_still_reports_unreachable():
+    def fake_urlopen(req, timeout):
+        raise urllib.error.URLError("connection refused")
+
+    with patch.object(gateway_tools, "_config", return_value=_config()):
+        with patch("urllib.request.urlopen", fake_urlopen):
+            result = gateway_tools._request("GET", "/v1/whoami")
+    assert "could not reach" in result["error"]
+    assert "timed_out" not in result

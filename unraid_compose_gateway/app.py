@@ -71,6 +71,7 @@ def whoami(settings: Settings = Depends(get_settings)) -> WhoAmI:
         compose_version=version,
         compose_version_source=compose_version.compose_source(),
         host_compose_version=host_version,
+        compose_timeout_seconds=settings.compose_timeout_seconds,
     )
 
 
