@@ -3,7 +3,7 @@
   "label": "UCG",
   "description": "unraid-compose-gateway connection: sidecar URL, token, and whether compose control is allowed.",
   "icon": "Package",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "tab": { "path": "/ucg", "position": "after:skills" },
   "entry": "dist/index.js",
   "api": "plugin_api.py"
