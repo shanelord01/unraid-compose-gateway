@@ -74,6 +74,7 @@
     var g = useState(""); var msg = g[0]; var setMsg = g[1];
     var i = useState(null); var test = i[0]; var setTest = i[1];
     var j = useState(false); var busy = j[0]; var setBusy = j[1];
+    var k = useState(600); var longTimeout_ = k[0]; var setLongTimeout_ = k[1];
 
     var load = useCallback(function () {
       api("/settings").then(function (r) {
@@ -82,6 +83,7 @@
           setUrl(r.settings.gateway_url || "");
           setAllowWrites(!!r.settings.allow_writes);
           setTimeout_(r.settings.timeout_seconds || 30);
+          setLongTimeout_(r.settings.long_timeout_seconds || 600);
         } else setMsg((r && r.error) || "failed to load settings");
       }).catch(function (err) { setMsg(String(err)); });
     }, []);
@@ -93,7 +95,8 @@
       var patch = {
         gateway_url: url,
         allow_writes: allowWrites,
-        timeout_seconds: timeout_
+        timeout_seconds: timeout_,
+        long_timeout_seconds: longTimeout_
       };
       // Only send the token when the field has been typed into, so saving
       // other changes never clears a stored token.
@@ -121,6 +124,13 @@
     if (!st) {
       return h("div", { style: S.page }, h("div", { style: S.sub }, msg || "Loading..."));
     }
+
+    // The gateway's own per-command limit, once a connection test has read it.
+    // Older gateways don't publish it; then we can only state the default.
+    var gatewayLimit = (test && test.ok && test.whoami &&
+                        typeof test.whoami.compose_timeout_seconds === "number")
+      ? test.whoami.compose_timeout_seconds
+      : null;
 
     return h("div", { style: S.page },
       h("div", { style: S.h1 }, "UCG"),
@@ -150,12 +160,39 @@
           h("div", { style: S.note },
             "Never sent back to this page once saved; only whether one exists.")),
 
-        h("div", { style: { marginBottom: "12px" } },
-          h("div", { style: S.label }, "Timeout (seconds)", h(Source, { from: src.timeout_seconds })),
-          h("input", {
-            type: "number", value: timeout_, style: Object.assign({}, S.input, { width: "100px" }),
-            onChange: function (ev) { setTimeout_(parseInt(ev.target.value, 10) || 30); }
-          })),
+        h("div", { style: { display: "flex", gap: "18px", marginBottom: "12px" } },
+          h("div", null,
+            h("div", { style: S.label }, "Read timeout (seconds)", h(Source, { from: src.timeout_seconds })),
+            h("input", {
+              type: "number", min: "1", value: timeout_,
+              style: Object.assign({}, S.input, { width: "110px" }),
+              onChange: function (ev) { setTimeout_(parseInt(ev.target.value, 10) || 30); }
+            }),
+            h("div", { style: S.note }, "whoami, projects, status, logs")),
+          h("div", null,
+            h("div", { style: S.label }, "Action timeout (seconds)",
+              h(Source, { from: src.long_timeout_seconds }),
+              gatewayLimit && longTimeout_ <= gatewayLimit
+                ? h("span", { style: S.warnBadge }, "too low")
+                : null),
+            h("input", {
+              type: "number", min: "1", value: longTimeout_,
+              style: Object.assign({}, S.input, { width: "110px" }),
+              onChange: function (ev) { setLongTimeout_(parseInt(ev.target.value, 10) || 600); }
+            }),
+            h("div", { style: S.note }, "up, down, restart, pull, prune"))),
+
+        h("div", { style: S.note },
+          gatewayLimit
+            ? (longTimeout_ <= gatewayLimit
+                ? "This gateway gives a compose command up to " + gatewayLimit + "s. An action " +
+                  "timeout of " + longTimeout_ + "s means this plugin gives up FIRST and reports " +
+                  "failures for work the gateway goes on to finish. Set it above " + gatewayLimit + "s."
+                : "This gateway gives a compose command up to " + gatewayLimit + "s, so the gateway " +
+                  "is what decides an action failed - which is correct.")
+            : "Keep the action timeout above the gateway's own COMPOSE_TIMEOUT_SECONDS (default 120) " +
+              "so the gateway, not this plugin, decides when an action has failed. Run Test " +
+              "connection to read the gateway's actual limit."),
 
         h("div", { style: S.row },
           h("input", {
@@ -200,7 +237,25 @@
                   : h("span", { style: S.note }, "none")),
               h("div", { style: { fontSize: "12px" } },
                 "Plugin update detection: " +
-                (test.whoami.plugin_updates_enabled ? "enabled" : "disabled (no PLUGIN_DIR on the gateway)")))
+                (test.whoami.plugin_updates_enabled ? "enabled" : "disabled (no PLUGIN_DIR on the gateway)")),
+              test.whoami.compose_version
+                ? h("div", { style: { fontSize: "12px", marginTop: "4px" } },
+                    "Compose version: " + test.whoami.compose_version +
+                    " (" + (test.whoami.compose_version_source || "bundled") + ")" +
+                    (test.whoami.host_compose_version
+                      ? ", host reports " + test.whoami.host_compose_version
+                      : ""))
+                : null,
+              gatewayLimit
+                ? h("div", { style: { fontSize: "12px", marginTop: "4px" } },
+                    "Gateway command limit: " + gatewayLimit + "s",
+                    longTimeout_ <= gatewayLimit
+                      ? h("span", { style: S.warnBadge },
+                          "action timeout " + longTimeout_ + "s is lower")
+                      : null)
+                : h("div", { style: Object.assign({}, S.note, { marginTop: "4px" }) },
+                    "This gateway does not publish compose_timeout_seconds - it predates that " +
+                    "field. Assume its default of 120s."))
           : h("div", { style: { fontSize: "13px" } }, "Failed: " + (test.error || "unknown"))) : null);
   }
 
